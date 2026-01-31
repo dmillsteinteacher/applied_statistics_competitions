@@ -4,7 +4,7 @@ import pandas as pd
 import time
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.4")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.5")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -49,7 +49,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_4"
+        key="editor_v6_5"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -121,13 +121,13 @@ if st.session_state.market_list is not None:
             else:
                 status = f"👀 Searching (Target: >{benchmark})"
             
-            status_list.append({"Student": name, "Strategy (N)": n, "Status": status})
+            status_list.append({"Student": f"{name} (N={n})", "Status": status})
 
         st.table(pd.DataFrame(status_list))
     else:
         st.info("Market Ready.")
 
-# --- 3. THE TRUTH ENGINE ---
+# --- 3. THE TRUTH ENGINE (LABELLED STRATEGIES) ---
 st.divider()
 st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 
@@ -139,6 +139,8 @@ if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
         df = st.session_state.student_data.copy()
         if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
+        
+        # We store simulation wins by name, but we will display name + (N=x)
         names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
         
         for name in names:
@@ -167,9 +169,13 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
 
 if st.session_state.sim_total_trials > 0:
     res_data = []
+    # Create a lookup for N values
+    n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
+    
     for name, wins in st.session_state.sim_total_wins.items():
+        n_val = n_lookup.get(name, "?")
         res_data.append({
-            "Student": name,
+            "Label": f"{name} (N={n_val})",
             "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
         })
     plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
@@ -177,9 +183,9 @@ if st.session_state.sim_total_trials > 0:
     st.vega_lite_chart(plot_df, {
         "mark": {"type": "bar", "height": 18},
         "encoding": {
-            "y": {"field": "Student", "type": "nominal", "sort": "-x", "title": ""},
+            "y": {"field": "Label", "type": "nominal", "sort": "-x", "title": ""},
             "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
-            "color": {"field": "Student", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
+            "color": {"field": "Label", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
         }
     }, use_container_width=True)
 
@@ -193,7 +199,7 @@ if st.session_state.market_list is not None:
 # --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.4")
+    st.caption("Auctioneer Mode v6.5")
 
 #
 #

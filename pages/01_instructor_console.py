@@ -4,7 +4,7 @@ import pandas as pd
 import time
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.2")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.3")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -41,14 +41,15 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data = pd.DataFrame([
             {"Student": "Alice", "N": 37},
             {"Student": "Bob", "N": 10},
-            {"Student": "Charlie", "N": 65}
+            {"Student": "Charlie", "N": 65},
+            {"Student": "Diana", "N": 25}
         ])
     
     st.session_state.student_data = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_2"
+        key="editor_v6_3"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -122,37 +123,42 @@ if st.session_state.market_list is not None:
 
         st.table(pd.DataFrame(status_list))
     else:
-        st.info("Market Ready. Use controls above.")
+        st.info("Market Ready.")
 
-# --- 3. THE TRUTH ENGINE (PURE EMPIRICAL MODE) ---
+# --- 3. THE TRUTH ENGINE (COLORED LEADERBOARD) ---
 st.divider()
-st.header("🧪 The Truth Engine (Controlled Simulation)")
+st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
-batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=5000, value=100, step=10)
 
-if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
-    df = st.session_state.student_data.copy()
-    if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
-    
-    names = df["Student"].tolist()
-    ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
-    
-    for name in names:
-        if name not in st.session_state.sim_total_wins:
-            st.session_state.sim_total_wins[name] = 0
+# Limit trials to 10k
+remaining = max(0, 10000 - st.session_state.sim_total_trials)
+batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=min(5000, remaining) if remaining > 0 else 1, value=min(100, remaining) if remaining > 0 else 1, step=10)
 
-    for _ in range(batch_to_add):
-        for i, n in enumerate(ns):
-            s = np.random.permutation(np.arange(1, 101))
-            b = np.max(s[:n]) if n > 0 else 0
-            p = s[-1]
-            for v in s[n:]:
-                if v > b: p = v; break
-            if p == 100:
-                st.session_state.sim_total_wins[names[i]] += 1
-    
-    st.session_state.sim_total_trials += batch_to_add
+if remaining > 0:
+    if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
+        df = st.session_state.student_data.copy()
+        if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
+        names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+        
+        for name in names:
+            if name not in st.session_state.sim_total_wins:
+                st.session_state.sim_total_wins[name] = 0
+
+        for _ in range(batch_to_add):
+            for i, n in enumerate(ns):
+                s = np.random.permutation(np.arange(1, 101))
+                b = np.max(s[:n]) if n > 0 else 0
+                p = s[-1]
+                for v in s[n:]:
+                    if v > b: p = v; break
+                if p == 100:
+                    st.session_state.sim_total_wins[names[i]] += 1
+        
+        st.session_state.sim_total_trials += batch_to_add
+        st.rerun()
+else:
+    sim_col2.success("Simulation Complete at 10,000 Trials!")
 
 if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_trials = 0
@@ -160,7 +166,7 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.rerun()
 
 if st.session_state.sim_total_trials > 0:
-    st.subheader(f"Cumulative Results: {st.session_state.sim_total_trials} Trials")
+    st.subheader(f"Progress: {st.session_state.sim_total_trials} / 10,000 Trials")
     
     res_data = []
     for name, wins in st.session_state.sim_total_wins.items():
@@ -171,12 +177,13 @@ if st.session_state.sim_total_trials > 0:
     
     plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
     
-    # Horizontal bar chart - No reference lines, pure data.
+    # Vega-Lite chart with color-per-student
     st.vega_lite_chart(plot_df, {
-        "mark": {"type": "bar", "height": 18, "color": "#1f77b4"},
+        "mark": {"type": "bar", "height": 18},
         "encoding": {
             "y": {"field": "Student", "type": "nominal", "sort": "-x", "title": ""},
-            "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"}
+            "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
+            "color": {"field": "Student", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
         }
     }, use_container_width=True)
 
@@ -190,11 +197,7 @@ if st.session_state.market_list is not None:
 # --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.2")
-
-#
-#
-#
+    st.caption("Auctioneer Mode v6.3")
 #
 #
 #

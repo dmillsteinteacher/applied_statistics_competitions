@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v5.0")
+st.set_page_config(layout="wide", page_title="Market Master Console v5.1")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -43,7 +43,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v5"
+        key="editor_v5_1"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -90,12 +90,14 @@ if st.session_state.market_list is not None:
             name = row["Student"]
             n = int(row["N"])
             
+            # Persistent benchmark for the session
+            benchmark = np.max(market[:n]) if n > 0 else 0
+            
             # Logic for persistent booking
             if name not in st.session_state.student_results:
                 if step <= n:
                     status = "🔍 Researching"
                 else:
-                    benchmark = np.max(market[:n]) if n > 0 else 0
                     if curr_val > benchmark or step == 100:
                         st.session_state.student_results[name] = {
                             "Step": step,
@@ -104,7 +106,7 @@ if st.session_state.market_list is not None:
                         }
                         status = f"✅ BOOKED (Rank {101-curr_val})"
                     else:
-                        status = "👀 Searching..."
+                        status = f"👀 Searching (Must beat: {benchmark})"
             else:
                 res = st.session_state.student_results[name]
                 status = f"✅ BOOKED at #{res['Step']} (Rank {res['Rank']})"
@@ -164,7 +166,7 @@ with st.sidebar:
     if st.button("Log Out"):
         st.session_state.authenticated = False
         st.rerun()
-    st.caption("Auctioneer Mode v5.0")
+    st.caption("Auctioneer Mode v5.1")
 
 # --- SOURCE CODE PADDING ---
 #

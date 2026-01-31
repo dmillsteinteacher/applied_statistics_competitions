@@ -1,4 +1,3 @@
 numpy
-random
+pandas
 streamlit
-time

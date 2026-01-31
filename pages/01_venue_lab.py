@@ -106,18 +106,24 @@ with tab1:
                 final_rank = 100 - st.session_state.ranks[idx]
                 st.success(f"### ✅ BOOKED AT VENUE #{idx + 1}!")
                 
-                col_a, col_b = st.columns(2)
+                # Finding the actual #1 venue details
+                best_score = max(scores)
+                best_idx = list(scores).index(best_score) + 1 # +1 for human readable 1-100
+                
+                col_a, col_b, col_c = st.columns(3)
                 col_a.metric("Your Venue Rank", f"#{final_rank}")
-                col_b.metric("Best Possible Value", f"{max(scores):,}")
+                col_b.metric("The #1 Score", f"{best_score:,}")
+                col_c.metric("The #1's Position", f"Venue {best_idx}")
                 
                 if final_rank == 1:
                     st.balloons()
                     st.snow()
-                    st.write("🏆 **PERFECT!** You found the #1 venue!")
-                elif final_rank <= 10:
-                    st.write("👏 **Excellent!** You landed in the top 10%.")
+                    st.write("🏆 **PERFECT!** You caught the winner!")
                 else:
-                    st.write("😅 **Ouch.** Tough luck this time!")
+                    if best_idx <= k_val:
+                        st.write(f"🔍 **Observation:** The best venue appeared at Position {best_idx}—you were still in the **Research Phase**, so it was impossible to win this round!")
+                    else:
+                        st.write(f"💡 **Observation:** The best venue was at Position {best_idx}. You had a mathematical chance, but the strategy is about maximizing probability, not certainty!")
 
 # --- TAB 2: LARGE SCALE SIMULATION ---
 with tab2:

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v5.1")
+st.set_page_config(layout="wide", page_title="Market Master Console v5.2")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -43,7 +43,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v5_1"
+        key="editor_v5_2"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -52,6 +52,7 @@ st.header("🏁 The Manual Reveal")
 
 col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([1, 1, 1])
 
+# GENERATE: New values, New start
 if col_ctrl1.button("🎲 Generate New Market", use_container_width=True):
     st.session_state.market_list = np.random.permutation(np.arange(1, 101))
     st.session_state.current_step = 0
@@ -59,13 +60,14 @@ if col_ctrl1.button("🎲 Generate New Market", use_container_width=True):
     st.rerun()
 
 if st.session_state.market_list is not None:
-    # Facilitation Controls
+    # NEXT: Move forward
     if st.session_state.current_step < 100:
         if col_ctrl2.button("➡️ Next Venue", type="primary", use_container_width=True):
             st.session_state.current_step += 1
             st.rerun()
     
-    if col_ctrl3.button("Reset Reveal", use_container_width=True):
+    # RESET: Same values, New start
+    if col_ctrl3.button("🔄 Reset This Reveal", use_container_width=True, help="Keep the same market but start back at Step 0"):
         st.session_state.current_step = 0
         st.session_state.student_results = {}
         st.rerun()
@@ -89,20 +91,15 @@ if st.session_state.market_list is not None:
         for _, row in df.iterrows():
             name = row["Student"]
             n = int(row["N"])
-            
-            # Persistent benchmark for the session
             benchmark = np.max(market[:n]) if n > 0 else 0
             
-            # Logic for persistent booking
             if name not in st.session_state.student_results:
                 if step <= n:
-                    status = "🔍 Researching"
+                    status = f"🔍 Researching (Max so far: {np.max(market[:step])})"
                 else:
                     if curr_val > benchmark or step == 100:
                         st.session_state.student_results[name] = {
-                            "Step": step,
-                            "Value": curr_val,
-                            "Rank": 101 - curr_val
+                            "Step": step, "Value": curr_val, "Rank": 101 - curr_val
                         }
                         status = f"✅ BOOKED (Rank {101-curr_val})"
                     else:
@@ -113,37 +110,28 @@ if st.session_state.market_list is not None:
             
             status_list.append({"Student": name, "Status": status})
 
-        # Display Status Matrix
         st.table(pd.DataFrame(status_list))
-
     else:
-        st.info("Market generated. Click 'Next Venue' to begin the reveal.")
+        st.info("Market Ready. Click 'Next Venue' to start the reveal.")
 
 # --- 3. POST-RACE SUMMARY ---
-if st.session_state.current_step == 100 or (st.session_state.student_results and len(st.session_state.student_results) == len(st.session_state.student_data)):
+if st.session_state.current_step == 100:
     st.divider()
     st.header("📊 Post-Race Summary")
-    
     winners = [name for name, res in st.session_state.student_results.items() if res["Rank"] == 1]
+    st.success(f"🏆 Winners who found the #1 Venue: {', '.join(winners) if winners else 'None'}")
     
-    c1, c2 = st.columns(2)
-    c1.metric("Found #1 Venue", f"{len(winners)}")
-    c2.write("**The Winners:**")
-    c2.write(", ".join(winners) if winners else "None this round.")
-
     summary_df = pd.DataFrame.from_dict(st.session_state.student_results, orient='index').reset_index()
-    summary_df.columns = ["Student", "Stop Step", "Venue Value", "Final Rank"]
-    st.dataframe(summary_df.sort_values("Final Rank"), use_container_width=True)
+    summary_df.columns = ["Student", "Stop Step", "Value", "Rank"]
+    st.dataframe(summary_df.sort_values("Rank"), use_container_width=True)
 
 # --- 4. THE TRUTH ENGINE ---
 st.divider()
 st.header("🧪 The Truth Engine (2,000 Trials)")
 if st.button("📊 Run Simulation Race"):
     df = st.session_state.student_data.copy()
-    if len(df.columns) >= 2:
-        df.columns = ["Student", "N"] + list(df.columns[2:])
-    names = df["Student"].tolist()
-    ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+    if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
+    names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
     wins = np.zeros(len(names))
     
     chart_holder = st.empty()
@@ -154,24 +142,23 @@ if st.button("📊 Run Simulation Race"):
                 b = np.max(s[:n]) if n > 0 else 0
                 p = s[-1]
                 for v in s[n:]:
-                    if v > b:
-                        p = v
-                        break
+                    if v > b: p = v; break
                 if p == 100: wins[i] += 1
         
         plot_df = pd.DataFrame({"Student": names, "Win Rate %": (wins/trial)*100}).sort_values("Win Rate %")
         chart_holder.bar_chart(plot_df.set_index("Student"))
 
-with st.sidebar:
-    if st.button("Log Out"):
-        st.session_state.authenticated = False
-        st.rerun()
-    st.caption("Auctioneer Mode v5.1")
+# --- MARKET TRUTH (FOR TEACHER EYES ONLY) ---
+if st.session_state.market_list is not None:
+    with st.expander("🕵️ Private Market Intel"):
+        best_pos = np.where(st.session_state.market_list == 100)[0][0] + 1
+        st.write(f"The #1 Venue is at Position: **{best_pos}**")
 
 # --- SOURCE CODE PADDING ---
-#
-#
-#
+with st.sidebar:
+    if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
+    st.caption("Auctioneer Mode v5.2")
+
 #
 #
 #

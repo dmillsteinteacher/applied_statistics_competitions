@@ -4,7 +4,7 @@ import pandas as pd
 import time
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.0")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.2")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -28,7 +28,6 @@ if 'current_step' not in st.session_state:
     st.session_state.current_step = 0
 if 'student_results' not in st.session_state:
     st.session_state.student_results = {}
-# New Simulation State
 if 'sim_total_trials' not in st.session_state:
     st.session_state.sim_total_trials = 0
 if 'sim_total_wins' not in st.session_state:
@@ -40,16 +39,16 @@ st.title("👨‍🏫 Teacher Console: Market Auctioneer")
 with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.market_list is None)):
     if 'student_data' not in st.session_state:
         st.session_state.student_data = pd.DataFrame([
-            {"Student": "Alice (Optimal)", "N": 37},
-            {"Student": "Bob (Aggressive)", "N": 10},
-            {"Student": "Charlie (Cautious)", "N": 65}
+            {"Student": "Alice", "N": 37},
+            {"Student": "Bob", "N": 10},
+            {"Student": "Charlie", "N": 65}
         ])
     
     st.session_state.student_data = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_0"
+        key="editor_v6_2"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -116,7 +115,7 @@ if st.session_state.market_list is not None:
                 res = st.session_state.student_results[name]
                 status = f"✅ BOOKED (Loc: #{res.get('Location')}, Val: {res.get('Value')}, Rank: {res.get('Rank')})"
             elif step <= n:
-                status = f"🔍 Researching (Max so far: {np.max(market[:step]) if step > 0 else 0})"
+                status = f"🔍 Researching (Benchmark: {np.max(market[:step]) if step > 0 else 0})"
             else:
                 status = f"👀 Searching (Target: >{benchmark})"
             status_list.append({"Student": name, "Status": status})
@@ -125,10 +124,9 @@ if st.session_state.market_list is not None:
     else:
         st.info("Market Ready. Use controls above.")
 
-# --- 3. THE TRUTH ENGINE (V6.0 OVERHAUL) ---
+# --- 3. THE TRUTH ENGINE (PURE EMPIRICAL MODE) ---
 st.divider()
 st.header("🧪 The Truth Engine (Controlled Simulation)")
-st.caption("Demonstrate how win rates stabilize over time.")
 
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
 batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=5000, value=100, step=10)
@@ -137,15 +135,13 @@ if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primar
     df = st.session_state.student_data.copy()
     if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
     
-    # Initialize win counts for new students if they don't exist
-    for name in df["Student"].tolist():
-        if name not in st.session_state.sim_total_wins:
-            st.session_state.sim_total_wins[name] = 0
-
     names = df["Student"].tolist()
     ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
     
-    # Run the batch simulation
+    for name in names:
+        if name not in st.session_state.sim_total_wins:
+            st.session_state.sim_total_wins[name] = 0
+
     for _ in range(batch_to_add):
         for i, n in enumerate(ns):
             s = np.random.permutation(np.arange(1, 101))
@@ -163,9 +159,8 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_wins = {}
     st.rerun()
 
-# Display the Horizontal Leaderboard
 if st.session_state.sim_total_trials > 0:
-    st.subheader(f"Results after {st.session_state.sim_total_trials} Total Trials")
+    st.subheader(f"Cumulative Results: {st.session_state.sim_total_trials} Trials")
     
     res_data = []
     for name, wins in st.session_state.sim_total_wins.items():
@@ -176,19 +171,14 @@ if st.session_state.sim_total_trials > 0:
     
     plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
     
-    # Using Altair for thinner bars and horizontal orientation
+    # Horizontal bar chart - No reference lines, pure data.
     st.vega_lite_chart(plot_df, {
-        'mark': {'type': 'bar', 'height': 15, 'color': '#ff4b4b'}, # Thinner bars
-        'encoding': {
-            'y': {'field': 'Student', 'type': 'nominal', 'sort': '-x', 'title': None},
-            'x': {'field': 'Win Rate %', 'type': 'quantitative', 'title': 'Win Rate (Targeting #1 Venue)'},
-        },
-        'config': {'view': {'stroke': 'transparent'}}
+        "mark": {"type": "bar", "height": 18, "color": "#1f77b4"},
+        "encoding": {
+            "y": {"field": "Student", "type": "nominal", "sort": "-x", "title": ""},
+            "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"}
+        }
     }, use_container_width=True)
-
-    st.caption("Theoretical Optimal Win Rate (1/e) is approximately **36.8%**")
-
-
 
 # --- MARKET TRUTH ---
 st.divider()
@@ -200,8 +190,8 @@ if st.session_state.market_list is not None:
 # --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.0")
-#
+    st.caption("Auctioneer Mode v6.2")
+
 #
 #
 #

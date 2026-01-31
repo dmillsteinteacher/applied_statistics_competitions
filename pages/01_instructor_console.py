@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.6")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.7")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -43,15 +43,13 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
             {"Student": "Charlie", "N": 65}
         ])
     
-    # Capture edited data and immediately standardize column names
     edited_df = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_6"
+        key="editor_v6_7"
     )
     
-    # ENSURE COLUMN NAMES ARE STABLE
     if len(edited_df.columns) >= 2:
         edited_df.columns = ["Student", "N"] + list(edited_df.columns[2:])
     st.session_state.student_data = edited_df
@@ -73,11 +71,9 @@ if st.session_state.market_list is not None:
         if col_ctrl2.button("➡️ Next Venue", type="primary", use_container_width=True):
             st.session_state.current_step += 1
             st.rerun()
-            
         if col_ctrl3.button("⏩ Fast Forward", use_container_width=True):
             st.session_state.current_step = 100
             st.rerun()
-    
     if col_ctrl4.button("🔄 Reset This Reveal", use_container_width=True):
         st.session_state.current_step = 0
         st.session_state.student_results = {}
@@ -92,7 +88,6 @@ if st.session_state.market_list is not None:
         m1.metric("Current Venue", f"#{step}")
         m2.metric("Venue Value", f"{curr_val}")
         
-        # Process booking logic
         df = st.session_state.student_data
         for s_idx in range(1, step + 1):
             val_at_s = market[s_idx-1]
@@ -104,27 +99,21 @@ if st.session_state.market_list is not None:
                     if s_idx > n:
                         if val_at_s > benchmark or s_idx == 100:
                             st.session_state.student_results[name] = {
-                                "Location": int(s_idx), 
-                                "Value": int(val_at_s), 
-                                "Rank": int(101 - val_at_s)
+                                "Location": int(s_idx), "Value": int(val_at_s), "Rank": int(101 - val_at_s)
                             }
 
         status_list = []
         for _, row in df.iterrows():
             name = str(row["Student"])
             n = int(row["N"])
-            benchmark = np.max(market[:n]) if n > 0 else 0
-            
             if name in st.session_state.student_results:
                 res = st.session_state.student_results[name]
                 status = f"✅ BOOKED (Loc: #{res.get('Location')}, Val: {res.get('Value')}, Rank: {res.get('Rank')})"
             elif step <= n:
                 status = f"🔍 Researching (Target: {np.max(market[:step]) if step > 0 else 0})"
             else:
-                status = f"👀 Searching (Target: >{benchmark})"
-            
+                status = f"👀 Searching (Target: >{np.max(market[:n]) if n > 0 else 0})"
             status_list.append({"Student": f"{name} (N={n})", "Status": status})
-
         st.table(pd.DataFrame(status_list))
 
 # --- 3. THE TRUTH ENGINE ---
@@ -139,11 +128,8 @@ if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
         df = st.session_state.student_data
         names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
-        
         for name in names:
-            if name not in st.session_state.sim_total_wins:
-                st.session_state.sim_total_wins[name] = 0
-
+            if name not in st.session_state.sim_total_wins: st.session_state.sim_total_wins[name] = 0
         for _ in range(batch_to_add):
             for i, n in enumerate(ns):
                 s = np.random.permutation(np.arange(1, 101))
@@ -151,9 +137,7 @@ if remaining > 0:
                 p = s[-1]
                 for v in s[n:]:
                     if v > b: p = v; break
-                if p == 100:
-                    st.session_state.sim_total_wins[names[i]] += 1
-        
+                if p == 100: st.session_state.sim_total_wins[names[i]] += 1
         st.session_state.sim_total_trials += batch_to_add
         st.rerun()
 
@@ -163,40 +147,27 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.rerun()
 
 if st.session_state.sim_total_trials > 0:
-    st.subheader(f"Progress: {st.session_state.sim_total_trials} / 10,000 Trials")
-    
-    # SAFE LOOKUP FOR LABELS
     n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
-    
-    res_data = []
-    for name, wins in st.session_state.sim_total_wins.items():
-        if name in n_lookup: # Only show students currently in the registration table
-            n_val = n_lookup[name]
-            res_data.append({
-                "Label": f"{name} (N={n_val})",
-                "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
-            })
-    
+    res_data = [{"Label": f"{n} (N={n_lookup[n]})", "Wins": w, "Rate": (w/st.session_state.sim_total_trials)*100} 
+                for n, w in st.session_state.sim_total_wins.items() if n in n_lookup]
     if res_data:
-        plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
+        plot_df = pd.DataFrame(res_data).sort_values("Rate", ascending=True)
         st.vega_lite_chart(plot_df, {
             "mark": {"type": "bar", "height": 18},
             "encoding": {
                 "y": {"field": "Label", "type": "nominal", "sort": "-x", "title": ""},
-                "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
+                "x": {"field": "Rate", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
                 "color": {"field": "Label", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
             }
         }, use_container_width=True)
 
-# --- MARKET TRUTH ---
+# --- MARKET TRUTH (FOR SINGLE RACE ONLY) ---
 st.divider()
 if st.session_state.market_list is not None:
-    with st.expander("🕵️ Private Market Intel"):
+    with st.expander("🕵️ Private Market Intel (Applies to Single Race Above)"):
         best_pos = np.where(st.session_state.market_list == 100)[0][0] + 1
-        st.write(f"The #1 Venue is at Position: **{best_pos}**")
+        st.write(f"In the current Single Race reveal, the #1 Venue is located at Position: **{best_pos}**")
 
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.6")
-
-# --- END OF FILE ---
+    st.caption("Auctioneer Mode v6.7")

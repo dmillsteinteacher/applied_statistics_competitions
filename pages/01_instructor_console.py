@@ -4,7 +4,7 @@ import pandas as pd
 import time
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.3")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.4")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -49,7 +49,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_3"
+        key="editor_v6_4"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -112,26 +112,26 @@ if st.session_state.market_list is not None:
             name = str(row["Student"])
             n = int(row["N"])
             benchmark = np.max(market[:n]) if n > 0 else 0
+            
             if name in st.session_state.student_results:
                 res = st.session_state.student_results[name]
                 status = f"✅ BOOKED (Loc: #{res.get('Location')}, Val: {res.get('Value')}, Rank: {res.get('Rank')})"
             elif step <= n:
-                status = f"🔍 Researching (Benchmark: {np.max(market[:step]) if step > 0 else 0})"
+                status = f"🔍 Researching (Target: {np.max(market[:step]) if step > 0 else 0})"
             else:
                 status = f"👀 Searching (Target: >{benchmark})"
-            status_list.append({"Student": name, "Status": status})
+            
+            status_list.append({"Student": name, "Strategy (N)": n, "Status": status})
 
         st.table(pd.DataFrame(status_list))
     else:
         st.info("Market Ready.")
 
-# --- 3. THE TRUTH ENGINE (COLORED LEADERBOARD) ---
+# --- 3. THE TRUTH ENGINE ---
 st.divider()
 st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
-
-# Limit trials to 10k
 remaining = max(0, 10000 - st.session_state.sim_total_trials)
 batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=min(5000, remaining) if remaining > 0 else 1, value=min(100, remaining) if remaining > 0 else 1, step=10)
 
@@ -158,7 +158,7 @@ if remaining > 0:
         st.session_state.sim_total_trials += batch_to_add
         st.rerun()
 else:
-    sim_col2.success("Simulation Complete at 10,000 Trials!")
+    sim_col2.success("Simulation Complete!")
 
 if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_trials = 0
@@ -166,18 +166,14 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.rerun()
 
 if st.session_state.sim_total_trials > 0:
-    st.subheader(f"Progress: {st.session_state.sim_total_trials} / 10,000 Trials")
-    
     res_data = []
     for name, wins in st.session_state.sim_total_wins.items():
         res_data.append({
             "Student": name,
             "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
         })
-    
     plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
     
-    # Vega-Lite chart with color-per-student
     st.vega_lite_chart(plot_df, {
         "mark": {"type": "bar", "height": 18},
         "encoding": {
@@ -197,14 +193,8 @@ if st.session_state.market_list is not None:
 # --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.3")
-#
-#
-#
-#
-#
-#
-#
+    st.caption("Auctioneer Mode v6.4")
+
 #
 #
 #

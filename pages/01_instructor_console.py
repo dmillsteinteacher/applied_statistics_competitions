@@ -1,10 +1,9 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import time
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.5")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.6")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -41,16 +40,21 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data = pd.DataFrame([
             {"Student": "Alice", "N": 37},
             {"Student": "Bob", "N": 10},
-            {"Student": "Charlie", "N": 65},
-            {"Student": "Diana", "N": 25}
+            {"Student": "Charlie", "N": 65}
         ])
     
-    st.session_state.student_data = st.data_editor(
+    # Capture edited data and immediately standardize column names
+    edited_df = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_5"
+        key="editor_v6_6"
     )
+    
+    # ENSURE COLUMN NAMES ARE STABLE
+    if len(edited_df.columns) >= 2:
+        edited_df.columns = ["Student", "N"] + list(edited_df.columns[2:])
+    st.session_state.student_data = edited_df
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
 st.divider()
@@ -79,19 +83,17 @@ if st.session_state.market_list is not None:
         st.session_state.student_results = {}
         st.rerun()
 
-    m1, m2, m3 = st.columns(3)
     step = st.session_state.current_step
     market = st.session_state.market_list
 
     if step > 0:
+        m1, m2 = st.columns(2)
         curr_val = market[step-1]
         m1.metric("Current Venue", f"#{step}")
         m2.metric("Venue Value", f"{curr_val}")
         
-        df = st.session_state.student_data.copy()
-        if len(df.columns) >= 2:
-            df.columns = ["Student", "N"] + list(df.columns[2:])
-        
+        # Process booking logic
+        df = st.session_state.student_data
         for s_idx in range(1, step + 1):
             val_at_s = market[s_idx-1]
             for _, row in df.iterrows():
@@ -124,10 +126,8 @@ if st.session_state.market_list is not None:
             status_list.append({"Student": f"{name} (N={n})", "Status": status})
 
         st.table(pd.DataFrame(status_list))
-    else:
-        st.info("Market Ready.")
 
-# --- 3. THE TRUTH ENGINE (LABELLED STRATEGIES) ---
+# --- 3. THE TRUTH ENGINE ---
 st.divider()
 st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 
@@ -137,10 +137,7 @@ batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=mi
 
 if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
-        df = st.session_state.student_data.copy()
-        if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
-        
-        # We store simulation wins by name, but we will display name + (N=x)
+        df = st.session_state.student_data
         names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
         
         for name in names:
@@ -159,8 +156,6 @@ if remaining > 0:
         
         st.session_state.sim_total_trials += batch_to_add
         st.rerun()
-else:
-    sim_col2.success("Simulation Complete!")
 
 if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_trials = 0
@@ -168,26 +163,30 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.rerun()
 
 if st.session_state.sim_total_trials > 0:
-    res_data = []
-    # Create a lookup for N values
+    st.subheader(f"Progress: {st.session_state.sim_total_trials} / 10,000 Trials")
+    
+    # SAFE LOOKUP FOR LABELS
     n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
     
+    res_data = []
     for name, wins in st.session_state.sim_total_wins.items():
-        n_val = n_lookup.get(name, "?")
-        res_data.append({
-            "Label": f"{name} (N={n_val})",
-            "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
-        })
-    plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
+        if name in n_lookup: # Only show students currently in the registration table
+            n_val = n_lookup[name]
+            res_data.append({
+                "Label": f"{name} (N={n_val})",
+                "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
+            })
     
-    st.vega_lite_chart(plot_df, {
-        "mark": {"type": "bar", "height": 18},
-        "encoding": {
-            "y": {"field": "Label", "type": "nominal", "sort": "-x", "title": ""},
-            "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
-            "color": {"field": "Label", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
-        }
-    }, use_container_width=True)
+    if res_data:
+        plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
+        st.vega_lite_chart(plot_df, {
+            "mark": {"type": "bar", "height": 18},
+            "encoding": {
+                "y": {"field": "Label", "type": "nominal", "sort": "-x", "title": ""},
+                "x": {"field": "Win Rate %", "type": "quantitative", "scale": {"domain": [0, 100]}, "title": "Observed Win Rate (%)"},
+                "color": {"field": "Label", "type": "nominal", "legend": None, "scale": {"scheme": "category20"}}
+            }
+        }, use_container_width=True)
 
 # --- MARKET TRUTH ---
 st.divider()
@@ -196,15 +195,8 @@ if st.session_state.market_list is not None:
         best_pos = np.where(st.session_state.market_list == 100)[0][0] + 1
         st.write(f"The #1 Venue is at Position: **{best_pos}**")
 
-# --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.5")
+    st.caption("Auctioneer Mode v6.6")
 
-#
-#
-#
-#
-#
-#
 # --- END OF FILE ---

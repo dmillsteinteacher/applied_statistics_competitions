@@ -101,4 +101,121 @@ if st.session_state.market_list is not None:
                     benchmark = np.max(market[:n]) if n > 0 else 0
                     if s_idx > n:
                         if val_at_s > benchmark or s_idx == 100:
-                            st.session_state.student_results[name] =
+                            st.session_state.student_results[name] = {
+                                "Location": int(s_idx), 
+                                "Value": int(val_at_s), 
+                                "Rank": int(101 - val_at_s)
+                            }
+
+        status_list = []
+        for _, row in df.iterrows():
+            name = str(row["Student"])
+            n = int(row["N"])
+            benchmark = np.max(market[:n]) if n > 0 else 0
+            if name in st.session_state.student_results:
+                res = st.session_state.student_results[name]
+                status = f"✅ BOOKED (Loc: #{res.get('Location')}, Val: {res.get('Value')}, Rank: {res.get('Rank')})"
+            elif step <= n:
+                status = f"🔍 Researching (Max so far: {np.max(market[:step]) if step > 0 else 0})"
+            else:
+                status = f"👀 Searching (Target: >{benchmark})"
+            status_list.append({"Student": name, "Status": status})
+
+        st.table(pd.DataFrame(status_list))
+    else:
+        st.info("Market Ready. Use controls above.")
+
+# --- 3. THE TRUTH ENGINE (V6.0 OVERHAUL) ---
+st.divider()
+st.header("🧪 The Truth Engine (Controlled Simulation)")
+st.caption("Demonstrate how win rates stabilize over time.")
+
+sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
+batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=5000, value=100, step=10)
+
+if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
+    df = st.session_state.student_data.copy()
+    if len(df.columns) >= 2: df.columns = ["Student", "N"] + list(df.columns[2:])
+    
+    # Initialize win counts for new students if they don't exist
+    for name in df["Student"].tolist():
+        if name not in st.session_state.sim_total_wins:
+            st.session_state.sim_total_wins[name] = 0
+
+    names = df["Student"].tolist()
+    ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+    
+    # Run the batch simulation
+    for _ in range(batch_to_add):
+        for i, n in enumerate(ns):
+            s = np.random.permutation(np.arange(1, 101))
+            b = np.max(s[:n]) if n > 0 else 0
+            p = s[-1]
+            for v in s[n:]:
+                if v > b: p = v; break
+            if p == 100:
+                st.session_state.sim_total_wins[names[i]] += 1
+    
+    st.session_state.sim_total_trials += batch_to_add
+
+if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
+    st.session_state.sim_total_trials = 0
+    st.session_state.sim_total_wins = {}
+    st.rerun()
+
+# Display the Horizontal Leaderboard
+if st.session_state.sim_total_trials > 0:
+    st.subheader(f"Results after {st.session_state.sim_total_trials} Total Trials")
+    
+    res_data = []
+    for name, wins in st.session_state.sim_total_wins.items():
+        res_data.append({
+            "Student": name,
+            "Win Rate %": (wins / st.session_state.sim_total_trials) * 100
+        })
+    
+    plot_df = pd.DataFrame(res_data).sort_values("Win Rate %", ascending=True)
+    
+    # Using Altair for thinner bars and horizontal orientation
+    st.vega_lite_chart(plot_df, {
+        'mark': {'type': 'bar', 'height': 15, 'color': '#ff4b4b'}, # Thinner bars
+        'encoding': {
+            'y': {'field': 'Student', 'type': 'nominal', 'sort': '-x', 'title': None},
+            'x': {'field': 'Win Rate %', 'type': 'quantitative', 'title': 'Win Rate (Targeting #1 Venue)'},
+        },
+        'config': {'view': {'stroke': 'transparent'}}
+    }, use_container_width=True)
+
+    st.caption("Theoretical Optimal Win Rate (1/e) is approximately **36.8%**")
+
+
+
+# --- MARKET TRUTH ---
+st.divider()
+if st.session_state.market_list is not None:
+    with st.expander("🕵️ Private Market Intel"):
+        best_pos = np.where(st.session_state.market_list == 100)[0][0] + 1
+        st.write(f"The #1 Venue is at Position: **{best_pos}**")
+
+# --- SOURCE CODE PADDING ---
+with st.sidebar:
+    if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
+    st.caption("Auctioneer Mode v6.0")
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# --- END OF FILE ---

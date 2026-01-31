@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v5.3")
+st.set_page_config(layout="wide", page_title="Market Master Console v5.4")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -43,7 +43,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v5_3"
+        key="editor_v5_4"
     )
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -92,8 +92,7 @@ if st.session_state.market_list is not None:
         if len(df.columns) >= 2:
             df.columns = ["Student", "N"] + list(df.columns[2:])
         
-        status_list = []
-        # Process ALL steps up to the current one to handle Fast Forwarding correctly
+        # Process booking logic for all steps up to current
         for s_idx in range(1, step + 1):
             val_at_s = market[s_idx-1]
             for _, row in df.iterrows():
@@ -103,14 +102,16 @@ if st.session_state.market_list is not None:
                 if name not in st.session_state.student_results:
                     benchmark = np.max(market[:n]) if n > 0 else 0
                     if s_idx > n:
+                        # Leap if better than benchmark OR it's the final venue
                         if val_at_s > benchmark or s_idx == 100:
                             st.session_state.student_results[name] = {
-                                "Step": s_idx, 
+                                "Location": s_idx, 
                                 "Value": val_at_s, 
                                 "Rank": 101 - val_at_s
                             }
 
-        # Build display list
+        # Build display table
+        status_list = []
         for _, row in df.iterrows():
             name = row["Student"]
             n = int(row["N"])
@@ -118,17 +119,17 @@ if st.session_state.market_list is not None:
             
             if name in st.session_state.student_results:
                 res = st.session_state.student_results[name]
-                status = f"✅ BOOKED at #{res['Step']} (Value: {res['Value']}, Rank: {res['Rank']})"
+                status = f"✅ BOOKED (Loc: #{res['Location']}, Val: {res['Value']}, Rank: {res['Rank']})"
             elif step <= n:
-                status = f"🔍 Researching (Max so far: {np.max(market[:step])})"
+                status = f"🔍 Researching (Benchmark: {np.max(market[:step]) if step > 0 else 0})"
             else:
-                status = f"👀 Searching (Must beat: {benchmark})"
+                status = f"👀 Searching (Target: >{benchmark})"
             
             status_list.append({"Student": name, "Status": status})
 
         st.table(pd.DataFrame(status_list))
     else:
-        st.info("Market Ready. Click 'Next Venue' or 'Fast Forward' to begin.")
+        st.info("Market Ready. Click 'Next Venue' to begin the reveal.")
 
 # --- 3. POST-RACE SUMMARY ---
 if st.session_state.current_step == 100:
@@ -142,7 +143,7 @@ if st.session_state.current_step == 100:
         st.warning("📉 No one found the #1 Venue this round.")
     
     summary_df = pd.DataFrame.from_dict(st.session_state.student_results, orient='index').reset_index()
-    summary_df.columns = ["Student", "Stop Step", "Value", "Rank"]
+    summary_df.columns = ["Student", "Location", "Value", "Rank"]
     st.dataframe(summary_df.sort_values("Rank"), use_container_width=True)
 
 # --- 4. THE TRUTH ENGINE ---
@@ -177,8 +178,12 @@ if st.session_state.market_list is not None:
 # --- SOURCE CODE PADDING ---
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v5.3")
+    st.caption("Auctioneer Mode v5.4")
 
+#
+#
+#
+#
 #
 #
 #

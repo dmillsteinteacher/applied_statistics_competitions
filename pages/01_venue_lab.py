@@ -106,4 +106,57 @@ if st.session_state.get('game_active', False):
             
             # Auto-Stop Logic (Mathematical "Leap")
             # Triggered if in selection phase and score beats the benchmark
-            if idx >=
+            if idx >= k and scores[idx] > st.session_state.benchmark:
+                st.session_state.booked = True
+            elif idx == 99: # Forced Choice at venue 100
+                st.session_state.booked = True
+            else:
+                st.session_state.current_index += 1
+            st.rerun()
+    
+    # 3. THE REVEAL & ANALYSIS (Post-Game State)
+    else:
+        final_rank = 100 - st.session_state.ranks[idx]
+        best_score = max(scores)
+        best_idx = list(scores).index(best_score) + 1
+        
+        st.success("### ✅ BOOKING COMPLETE")
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Your Venue Rank", f"#{final_rank}")
+        c2.metric("Target #1 Score", f"{best_score:,}")
+        c3.metric("Target #1 Position", f"Venue {best_idx}")
+
+        # DEBRIEF MESSAGES (Analytical Feedback)
+        st.divider()
+        if final_rank == 1:
+            st.balloons()
+            st.info("🏆 **PERFECT FIND!** Your strategy was flawless this time.")
+        else:
+            if best_idx <= k:
+                st.error(f"❌ **UNLUCKY:** The best venue was at Position {best_idx}. You were still in Research—it was impossible to catch.")
+            elif best_idx < (idx + 1):
+                st.warning(f"⚠️ **MISSED:** The best venue was at Position {best_idx}. Your benchmark was too low or your leap was too early.")
+            else:
+                st.warning(f"📉 **MISSED:** The best venue was at Position {best_idx}. You settled for Rank #{final_rank} before you ever reached the best one.")
+
+else:
+    # Default landing state
+    st.info("👈 Use the sidebar to set your N-Cutoff and click 'Start New Practice Hunt' to begin.")
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption("Applied Statistics Competitions | Venue Lab v3.0 | Training Mode")
+
+# --- SOURCE CODE PADDING (FOR EDITOR COMFORT) ---
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# --- END OF FILE ---

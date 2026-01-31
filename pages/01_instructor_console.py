@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.7")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.8")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -47,7 +47,7 @@ with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.mar
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_7"
+        key="editor_v6_8"
     )
     
     if len(edited_df.columns) >= 2:
@@ -122,14 +122,26 @@ st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
 remaining = max(0, 10000 - st.session_state.sim_total_trials)
-batch_to_add = sim_col1.number_input("Trials to Add:", min_value=1, max_value=min(5000, remaining) if remaining > 0 else 1, value=min(100, remaining) if remaining > 0 else 1, step=10)
 
+# Number input for batch size
+batch_to_add = sim_col1.number_input(
+    "Trials to Add:", 
+    min_value=1, 
+    max_value=min(5000, remaining) if remaining > 0 else 1, 
+    value=min(100, remaining) if remaining > 0 else 1, 
+    step=10
+)
+
+# Execution logic
 if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
         df = st.session_state.student_data
-        names, ns = df["Student"].tolist(), pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+        names = df["Student"].tolist()
+        ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+        
         for name in names:
             if name not in st.session_state.sim_total_wins: st.session_state.sim_total_wins[name] = 0
+            
         for _ in range(batch_to_add):
             for i, n in enumerate(ns):
                 s = np.random.permutation(np.arange(1, 101))
@@ -138,18 +150,26 @@ if remaining > 0:
                 for v in s[n:]:
                     if v > b: p = v; break
                 if p == 100: st.session_state.sim_total_wins[names[i]] += 1
+        
         st.session_state.sim_total_trials += batch_to_add
         st.rerun()
+else:
+    sim_col2.success("Simulation Complete!")
 
 if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_trials = 0
     st.session_state.sim_total_wins = {}
     st.rerun()
 
+# --- DISPLAY TRUTH CHART & COUNTER ---
 if st.session_state.sim_total_trials > 0:
+    # Restored Trial Counter
+    st.subheader(f"📊 Current Progress: {st.session_state.sim_total_trials:,} / 10,000 Trials")
+    
     n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
-    res_data = [{"Label": f"{n} (N={n_lookup[n]})", "Wins": w, "Rate": (w/st.session_state.sim_total_trials)*100} 
+    res_data = [{"Label": f"{n} (N={n_lookup[n]})", "Rate": (w/st.session_state.sim_total_trials)*100} 
                 for n, w in st.session_state.sim_total_wins.items() if n in n_lookup]
+    
     if res_data:
         plot_df = pd.DataFrame(res_data).sort_values("Rate", ascending=True)
         st.vega_lite_chart(plot_df, {
@@ -161,13 +181,13 @@ if st.session_state.sim_total_trials > 0:
             }
         }, use_container_width=True)
 
-# --- MARKET TRUTH (FOR SINGLE RACE ONLY) ---
+# --- MARKET TRUTH ---
 st.divider()
 if st.session_state.market_list is not None:
-    with st.expander("🕵️ Private Market Intel (Applies to Single Race Above)"):
+    with st.expander("🕵️ Private Market Intel (Single Race)"):
         best_pos = np.where(st.session_state.market_list == 100)[0][0] + 1
         st.write(f"In the current Single Race reveal, the #1 Venue is located at Position: **{best_pos}**")
 
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.7")
+    st.caption("Auctioneer Mode v6.8")

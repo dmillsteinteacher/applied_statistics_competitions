@@ -1,154 +1,106 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 
-# --- HELPER FUNCTIONS ---
-def get_dynamic_description(rank_index):
-    """0 is worst, 99 is best internal rank based on the generated scores"""
-    if rank_index > 95: return "✨ Absolute Perfection. A legendary venue."
-    elif rank_index > 85: return "💎 Premium Quality. Highly sought after."
-    elif rank_index > 70: return "✅ Very Solid. Better than most."
-    elif rank_index > 50: return "⚖️ Decent. It gets the job done."
-    elif rank_index > 30: return "⚠️ Mediocre. Some red flags."
-    else: return "🏚️ Sub-par. The reviews are... honest."
+# --- CONFIG ---
+st.set_page_config(page_title="Strategy Training Lab", layout="wide")
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Venue Lab: Training Ground", page_icon="🏢", layout="wide")
-
-# --- CUSTOM COMMAND CENTER STYLING ---
+st.title("🧪 Strategy Training Lab")
 st.markdown("""
-    <style>
-    .reportview-container { background: #f0f2f6; }
-    .main { padding-top: 2rem; }
-    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 5px; border: 1px solid #d1d5db; }
-    .phase-header { font-size: 1.5rem; font-weight: bold; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
-    .research { background-color: #ff9800; color: white; }
-    .selection { background-color: #2196f3; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
+Use this lab to test your 'Look then Leap' intuition. 
+Your goal is to find the **Rank 100** venue.
+""")
 
-st.title("🏢 Venue Lab: The Training Ground")
-
-# --- NARRATIVE & STAKES ---
+# --- 1. SETTINGS ---
 with st.sidebar:
-    st.header("The Mission")
-    st.info("""
-    **The Story:** You are the Senior Party Social Chair. You have 100 venues to vet.
+    st.header("Lab Configuration")
+    # Defaulting to 1 to avoid spoilers as requested
+    look_percent = st.slider("Look Phase (%)", min_value=1, max_value=100, value=1)
     
-    **The Rules:** You see them one-by-one. Once you pass a venue, it's gone forever.
-    
-    **The Stakes:** Practice here to find your 'Magic Number' (Cutoff N). Once ready, submit your N to the Instructor for the Official Horse Race.
-    """)
-    
-    st.divider()
-    k_val = st.slider("Your Practice Cutoff (N)", 1, 99, 37, help="Number of venues to vet for research.")
-    
-    if st.button("🌟 Start New Practice Hunt", use_container_width=True):
-        # Shifting Scale Logic
-        power = np.random.choice([10, 100, 1000])
-        base = np.random.randint(1, 100) * power
-        scores = np.random.choice(range(base, base + 2000), 100, replace=False)
-        
-        # Internal Ranking
-        sorted_indices = np.argsort(scores)
-        ranks = np.zeros(100, dtype=int)
-        ranks[sorted_indices] = np.arange(100)
-        
-        st.session_state.update({
-            'game_active': True,
-            'current_index': 0,
-            'benchmark': 0,
-            'booked': False,
-            'scores': scores,
-            'ranks': ranks,
-            'descs': [get_dynamic_description(r) for r in ranks],
-            'k': k_val
-        })
+    if st.button("♻️ Reset Lab / New Market"):
+        st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
+        st.session_state.has_chosen = False
         st.rerun()
 
-# --- THE MANUAL HUNT ENGINE ---
-# Guardrail: Check if game_active exists AND is True before proceeding
-if st.session_state.get('game_active', False):
-    idx = st.session_state.current_index
-    scores = st.session_state.scores
-    booked = st.session_state.booked
-    k = st.session_state.get('k', k_val) 
+# Initialize Market
+if 'lab_market' not in st.session_state:
+    st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
+    st.session_state.has_chosen = False
 
-    # 1. COMMAND CENTER METRICS
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Current Venue", f"{idx + 1} / 100")
-    m2.metric("N-Cutoff", f"{k}")
-    m3.metric("Benchmark to Beat", f"{st.session_state.benchmark:,}")
+market = st.session_state.lab_market
+n_look = int(np.floor(look_percent))
+look_phase = market[:n_look]
+search_phase = market[n_look:]
 
-    st.divider()
+# --- 2. THE LOOK PHASE ---
+st.subheader(f"1. Look Phase (First {n_look} Venues)")
+benchmark = np.max(look_phase) if len(look_phase) > 0 else 0
 
-    # 2. PHASE INDICATOR & REVEAL
-    if not booked:
-        if idx < k:
-            st.markdown(f'<div class="phase-header research">🕵️ RESEARCH PHASE: Building the Benchmark</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="phase-header selection">⚡ SELECTION PHASE: Active Search Mode</div>', unsafe_allow_html=True)
+# Create a clean dataframe for the look phase
+look_df = pd.DataFrame({
+    "Venue #": range(1, n_look + 1),
+    "Rank Value": look_phase
+})
 
-        # Venue Display Card
-        st.markdown(f"""
-            <div style="padding:40px; border:3px solid #1f77b4; border-radius:15px; background-color: white; text-align: center;">
-                <h1 style="font-size: 4rem; color: #1f77b4; margin-bottom: 0;">{scores[idx]:,}</h1>
-                <p style="font-size: 1.5rem; color: #4b5563;">{st.session_state.descs[idx]}</p>
-            </div>
-        """, unsafe_allow_html=True)
+st.table(look_df.set_index("Venue #"))
+st.info(f"**Benchmark Set:** The best value seen during the Look Phase was **{benchmark}**.")
 
-        # Interaction Logic
-        st.write("")
-        if st.button("➡️ VIEW NEXT VENUE", use_container_width=True):
-            # Update Benchmark during Research Phase
-            if idx < k:
-                if scores[idx] > st.session_state.benchmark:
-                    st.session_state.benchmark = scores[idx]
-            
-            # Auto-Stop Logic (Mathematical "Leap")
-            # Triggered if in selection phase and score beats the benchmark
-            if idx >= k and scores[idx] > st.session_state.benchmark:
-                st.session_state.booked = True
-            elif idx == 99: # Forced Choice at venue 100
-                st.session_state.booked = True
-            else:
-                st.session_state.current_index += 1
-            st.rerun()
+# --- 3. THE SEARCH PHASE ---
+st.divider()
+st.subheader("2. Search Phase (The Leap)")
+
+chosen_value = search_phase[-1] if len(search_phase) > 0 else 0 
+chosen_index = 100
+for i, val in enumerate(search_phase):
+    if val > benchmark:
+        chosen_value = val
+        chosen_index = n_look + i + 1
+        break
+
+if st.button("🚀 Run Simulation Leap"):
+    st.session_state.has_chosen = True
+
+if st.session_state.has_chosen:
+    st.write(f"### Result: You stopped at Venue #{chosen_index}")
     
-    # 3. THE REVEAL & ANALYSIS (Post-Game State)
-    else:
-        final_rank = 100 - st.session_state.ranks[idx]
-        best_score = max(scores)
-        best_idx = list(scores).index(best_score) + 1
-        
-        st.success("### ✅ BOOKING COMPLETE")
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Your Venue Rank", f"#{final_rank}")
-        c2.metric("Target #1 Score", f"{best_score:,}")
-        c3.metric("Target #1 Position", f"Venue {best_idx}")
-
-        # DEBRIEF MESSAGES (Analytical Feedback)
-        st.divider()
-        if final_rank == 1:
-            st.balloons()
-            st.info("🏆 **PERFECT FIND!** Your strategy was flawless this time.")
+    # Visualizing the Outcome
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Your Venue Value", f"{chosen_value}/100")
+    
+    with col2:
+        best_pos = np.where(market == 100)[0][0] + 1
+        if chosen_value == 100:
+            st.success(f"🏆 PERFECT! You found the Rank 100 venue.")
         else:
-            if best_idx <= k:
-                st.error(f"❌ **UNLUCKY:** The best venue was at Position {best_idx}. You were still in Research—it was impossible to catch.")
-            elif best_idx < (idx + 1):
-                st.warning(f"⚠️ **MISSED:** The best venue was at Position {best_idx}. Your benchmark was too low or your leap was too early.")
-            else:
-                st.warning(f"📉 **MISSED:** The best venue was at Position {best_idx}. You settled for Rank #{final_rank} before you ever reached the best one.")
+            st.error(f"❌ Missed. The Rank 100 venue was at Position #{best_pos}.")
 
-else:
-    # Default landing state
-    st.info("👈 Use the sidebar to set your N-Cutoff and click 'Start New Practice Hunt' to begin.")
+    # Show the full list for audit
+    with st.expander("🔍 View Full Market Sequence"):
+        full_results = pd.DataFrame({
+            "Position": range(1, 101),
+            "Value": market,
+            "Phase": ["LOOK" if i < n_look else "SEARCH" for i in range(100)]
+        })
+        
+        # Highlight the chosen row
+        def highlight_choice(row):
+            return ['background-color: #155724' if row.Position == chosen_index else '' for _ in row]
 
-# --- FOOTER ---
-st.markdown("---")
-st.caption("Applied Statistics Competitions | Venue Lab v3.0 | Training Mode")
+        st.dataframe(full_results.style.apply(highlight_choice, axis=1), use_container_width=True)
 
-# --- SOURCE CODE PADDING (FOR EDITOR COMFORT) ---
+# --- SOURCE CODE PADDING ---
+# This ensures that copy-pasting the script doesn't cut off 
+# critical closing logic or layout elements.
+#
+#
+#
+#
+#
+#
+#
+#
 #
 #
 #

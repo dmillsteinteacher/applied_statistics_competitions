@@ -5,103 +5,132 @@ import pandas as pd
 # --- CONFIG ---
 st.set_page_config(page_title="Strategy Training Lab", layout="wide")
 
-st.title("🧪 Strategy Training Lab")
+st.title("🧪 Strategy Training Lab: Interactive Mode")
 st.markdown("""
-Use this lab to test your 'Look then Leap' intuition. 
-Your goal is to find the **Rank 100** venue.
+**The Rules:**
+1. **Look Phase (N%)**: Observe venues to set a benchmark. You **cannot** stop here.
+2. **Search Phase**: The first venue that **beats** your benchmark is automatically selected.
 """)
 
-# --- 1. SETTINGS ---
+# --- 1. STATE MANAGEMENT ---
+if 'lab_market' not in st.session_state:
+    st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
+    st.session_state.current_index = 0
+    st.session_state.benchmark = 0
+    st.session_state.choice_made = False
+    st.session_state.final_choice = None
+
+# --- 2. SETTINGS ---
 with st.sidebar:
     st.header("Lab Configuration")
-    # Defaulting to 1 to avoid spoilers as requested
-    look_percent = st.slider("Look Phase (%)", min_value=1, max_value=100, value=1)
+    # DEFAULT TO 1% - No spoilers.
+    look_percent = st.slider("Look Phase (N %)", min_value=1.0, max_value=100.0, value=1.0, step=0.01)
     
     if st.button("♻️ Reset Lab / New Market"):
         st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
-        st.session_state.has_chosen = False
+        st.session_state.current_index = 0
+        st.session_state.benchmark = 0
+        st.session_state.choice_made = False
+        st.session_state.final_choice = None
         st.rerun()
 
-# Initialize Market
-if 'lab_market' not in st.session_state:
-    st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
-    st.session_state.has_chosen = False
-
 market = st.session_state.lab_market
-n_look = int(np.floor(look_percent))
-look_phase = market[:n_look]
-search_phase = market[n_look:]
+n_look_count = int(np.floor(look_percent))
 
-# --- 2. THE LOOK PHASE ---
-st.subheader(f"1. Look Phase (First {n_look} Venues)")
-benchmark = np.max(look_phase) if len(look_phase) > 0 else 0
+# --- 3. THE INTERACTIVE INTERFACE ---
+col_ctrl, col_log = st.columns([1, 2])
 
-# Create a clean dataframe for the look phase
-look_df = pd.DataFrame({
-    "Venue #": range(1, n_look + 1),
-    "Rank Value": look_phase
-})
-
-st.table(look_df.set_index("Venue #"))
-st.info(f"**Benchmark Set:** The best value seen during the Look Phase was **{benchmark}**.")
-
-# --- 3. THE SEARCH PHASE ---
-st.divider()
-st.subheader("2. Search Phase (The Leap)")
-
-chosen_value = search_phase[-1] if len(search_phase) > 0 else 0 
-chosen_index = 100
-for i, val in enumerate(search_phase):
-    if val > benchmark:
-        chosen_value = val
-        chosen_index = n_look + i + 1
-        break
-
-if st.button("🚀 Run Simulation Leap"):
-    st.session_state.has_chosen = True
-
-if st.session_state.has_chosen:
-    st.write(f"### Result: You stopped at Venue #{chosen_index}")
+with col_ctrl:
+    st.subheader("Controls")
+    curr_idx = st.session_state.current_index
     
-    # Visualizing the Outcome
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric("Your Venue Value", f"{chosen_value}/100")
-    
-    with col2:
-        best_pos = np.where(market == 100)[0][0] + 1
-        if chosen_value == 100:
-            st.success(f"🏆 PERFECT! You found the Rank 100 venue.")
+    # Visual Phase Indicator
+    if not st.session_state.choice_made:
+        if curr_idx < n_look_count:
+            st.warning(f"PHASE: LOOKING (Venue {curr_idx + 1} of {n_look_count})")
         else:
-            st.error(f"❌ Missed. The Rank 100 venue was at Position #{best_pos}.")
+            st.success(f"PHASE: SEARCHING (Must beat {st.session_state.benchmark})")
+    else:
+        st.info("PROCESS COMPLETE")
 
-    # Show the full list for audit
-    with st.expander("🔍 View Full Market Sequence"):
-        full_results = pd.DataFrame({
+    # Reveal Logic
+    if not st.session_state.choice_made and curr_idx < 100:
+        if st.button("➡️ Reveal Next Venue", type="primary", use_container_width=True):
+            val = market[curr_idx]
+            
+            # Logic for Look Phase
+            if curr_idx < n_look_count:
+                if val > st.session_state.benchmark:
+                    st.session_state.benchmark = val
+            
+            # Logic for Search Phase
+            else:
+                if val > st.session_state.benchmark:
+                    st.session_state.choice_made = True
+                    st.session_state.final_choice = (curr_idx + 1, val)
+            
+            # Logic for the end of the line
+            if not st.session_state.choice_made and curr_idx == 99:
+                st.session_state.choice_made = True
+                st.session_state.final_choice = (100, market[99])
+            
+            st.session_state.current_index += 1
+            st.rerun()
+
+    # Results Display
+    if st.session_state.choice_made:
+        loc, val = st.session_state.final_choice
+        st.divider()
+        st.metric("Your Final Choice", f"Rank {val}", f"Found at Venue #{loc}")
+        
+        if val == 100:
+            st.balloons()
+            st.success("Perfect! You found the Rank 100 venue.")
+        else:
+            best_pos = np.where(market == 100)[0][0] + 1
+            st.error(f"Missed. The Rank 100 venue was at Position #{best_pos}.")
+
+with col_log:
+    st.subheader("Activity Log")
+    
+    history = []
+    for i in range(st.session_state.current_index):
+        val = market[i]
+        is_choice = st.session_state.choice_made and (i == st.session_state.final_choice[0] - 1)
+        
+        phase_label = "LOOK" if i < n_look_count else "SEARCH"
+        note = ""
+        if i < n_look_count and val == st.session_state.benchmark:
+            note = "⭐ Benchmark Set"
+        if is_choice:
+            note = "🎯 PICKED"
+            
+        history.append({
+            "Venue": i + 1,
+            "Rank": val,
+            "Phase": phase_label,
+            "Note": note
+        })
+    
+    if history:
+        # Most recent reveal at top for easy reading
+        df_hist = pd.DataFrame(history).iloc[::-1]
+        st.table(df_hist.set_index("Venue"))
+    else:
+        st.info("Adjust the slider and click 'Reveal Next' to begin.")
+
+# --- 4. AUDIT ---
+if st.session_state.choice_made:
+    st.divider()
+    with st.expander("🔍 View Full Market Sequence (Post-Game Audit)"):
+        audit_df = pd.DataFrame({
             "Position": range(1, 101),
             "Value": market,
-            "Phase": ["LOOK" if i < n_look else "SEARCH" for i in range(100)]
+            "Phase": ["LOOK" if i < n_look_count else "SEARCH" for i in range(100)]
         })
-        
-        # Highlight the chosen row
-        def highlight_choice(row):
-            return ['background-color: #155724' if row.Position == chosen_index else '' for _ in row]
-
-        st.dataframe(full_results.style.apply(highlight_choice, axis=1), use_container_width=True)
+        st.dataframe(audit_df, use_container_width=True)
 
 # --- SOURCE CODE PADDING ---
-# This ensures that copy-pasting the script doesn't cut off 
-# critical closing logic or layout elements.
-#
-#
-#
-#
-#
-#
-#
-#
-#
 #
 #
 #

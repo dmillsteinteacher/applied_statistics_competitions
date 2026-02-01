@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.9")
+st.set_page_config(layout="wide", page_title="Market Master Console v7.1")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -32,36 +32,46 @@ if 'sim_total_trials' not in st.session_state:
 if 'sim_total_wins' not in st.session_state:
     st.session_state.sim_total_wins = {}
 
-# Persistent Data Storage
+# Persistent Data Storage - Default strategies are intentionally non-optimal
 if 'student_data' not in st.session_state:
     st.session_state.student_data = pd.DataFrame([
-        {"Student": "Alice", "N": 37},
-        {"Student": "Bob", "N": 10},
-        {"Student": "Charlie", "N": 65}
+        {"Student": "Alice", "N": 15.00},
+        {"Student": "Bob", "N": 45.00},
+        {"Student": "Charlie", "N": 75.00}
     ])
 
-# --- 1. STRATEGY REGISTRATION (DECOUPLED) ---
+# --- 1. STRATEGY REGISTRATION ---
 st.title("👨‍🏫 Teacher Console: Market Auctioneer")
 
 with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.market_list is None)):
-    st.info("Edit the table below and click 'Save' to update the simulation rosters.")
+    st.info("Register student strategies as percentages. Decimals allowed.")
     
-    # We use a key that DOES NOT sync automatically to session_state.student_data
-    # until we are ready.
+    # Editor with NumberColumn config for decimal precision
     edited_df = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="registry_editor_v6_9"
+        key="registry_editor_v7_1",
+        column_config={
+            "N": st.column_config.NumberColumn(
+                "N (Cutoff %)",
+                help="Look at this % of venues before picking.",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.01,
+                format="%.2f",
+                default=25.00 # Generic default for new rows
+            )
+        }
     )
     
     if st.button("💾 Save Student Registry", type="primary"):
-        # Standardize columns
         if len(edited_df.columns) >= 2:
             edited_df.columns = ["Student", "N"] + list(edited_df.columns[2:])
         
+        edited_df["N"] = pd.to_numeric(edited_df["N"], errors='coerce').fillna(0.0)
         st.session_state.student_data = edited_df
-        st.success("Registry updated and saved!")
+        st.success("Registry updated. No spoilers active!")
         st.rerun()
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
@@ -77,7 +87,10 @@ if col_ctrl1.button("🎲 Generate New Market", use_container_width=True):
     st.rerun()
 
 if st.session_state.market_list is not None:
-    if st.session_state.current_step < 100:
+    step = st.session_state.current_step
+    market = st.session_state.market_list
+    
+    if step < 100:
         if col_ctrl2.button("➡️ Next Venue", type="primary", use_container_width=True):
             st.session_state.current_step += 1
             st.rerun()
@@ -88,9 +101,6 @@ if st.session_state.market_list is not None:
         st.session_state.current_step = 0
         st.session_state.student_results = {}
         st.rerun()
-
-    step = st.session_state.current_step
-    market = st.session_state.market_list
 
     if step > 0:
         m1, m2 = st.columns(2)
@@ -103,10 +113,11 @@ if st.session_state.market_list is not None:
             val_at_s = market[s_idx-1]
             for _, row in df.iterrows():
                 name = str(row["Student"])
-                n = int(row["N"])
+                n_count = int(np.floor(float(row["N"])))
+                
                 if name not in st.session_state.student_results:
-                    benchmark = np.max(market[:n]) if n > 0 else 0
-                    if s_idx > n:
+                    benchmark = np.max(market[:n_count]) if n_count > 0 else 0
+                    if s_idx > n_count:
                         if val_at_s > benchmark or s_idx == 100:
                             st.session_state.student_results[name] = {
                                 "Location": int(s_idx), "Value": int(val_at_s), "Rank": int(101 - val_at_s)
@@ -115,15 +126,18 @@ if st.session_state.market_list is not None:
         status_list = []
         for _, row in df.iterrows():
             name = str(row["Student"])
-            n = int(row["N"])
+            n_val = float(row["N"])
+            n_count = int(np.floor(n_val))
+            
             if name in st.session_state.student_results:
                 res = st.session_state.student_results[name]
                 status = f"✅ BOOKED (Loc: #{res.get('Location')}, Val: {res.get('Value')}, Rank: {res.get('Rank')})"
-            elif step <= n:
+            elif step <= n_count:
                 status = f"🔍 Researching (Target: {np.max(market[:step]) if step > 0 else 0})"
             else:
-                status = f"👀 Searching (Target: >{np.max(market[:n]) if n > 0 else 0})"
-            status_list.append({"Student": f"{name} (N={n})", "Status": status})
+                benchmark = np.max(market[:n_count]) if n_count > 0 else 0
+                status = f"👀 Searching (Target: >{benchmark})"
+            status_list.append({"Student": f"{name} ({n_val}%)", "Status": status})
         st.table(pd.DataFrame(status_list))
 
 # --- 3. THE TRUTH ENGINE ---
@@ -135,17 +149,15 @@ remaining = max(0, 10000 - st.session_state.sim_total_trials)
 
 batch_to_add = sim_col1.number_input(
     "Trials to Add:", 
-    min_value=1, 
-    max_value=min(5000, remaining) if remaining > 0 else 1, 
-    value=min(100, remaining) if remaining > 0 else 1, 
-    step=10
+    min_value=1, max_value=min(5000, remaining) if remaining > 0 else 1, 
+    value=min(100, remaining) if remaining > 0 else 1, step=10
 )
 
 if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
         df = st.session_state.student_data
         names = df["Student"].tolist()
-        ns = pd.to_numeric(df["N"]).fillna(0).astype(int).tolist()
+        ns = [int(np.floor(float(val))) for val in df["N"].tolist()]
         
         for name in names:
             if name not in st.session_state.sim_total_wins: st.session_state.sim_total_wins[name] = 0
@@ -161,8 +173,6 @@ if remaining > 0:
         
         st.session_state.sim_total_trials += batch_to_add
         st.rerun()
-else:
-    sim_col2.success("Simulation Complete!")
 
 if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_trials = 0
@@ -173,7 +183,7 @@ if st.session_state.sim_total_trials > 0:
     st.subheader(f"📊 Current Progress: {st.session_state.sim_total_trials:,} / 10,000 Trials")
     
     n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
-    res_data = [{"Label": f"{n} (N={n_lookup[n]})", "Rate": (w/st.session_state.sim_total_trials)*100} 
+    res_data = [{"Label": f"{n} ({n_lookup[n]}%)", "Rate": (w/st.session_state.sim_total_trials)*100} 
                 for n, w in st.session_state.sim_total_wins.items() if n in n_lookup]
     
     if res_data:
@@ -196,4 +206,4 @@ if st.session_state.market_list is not None:
 
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.9")
+    st.caption("Auctioneer Mode v7.1")

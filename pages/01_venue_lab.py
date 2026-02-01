@@ -2,17 +2,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
-# --- CONFIG ---
-st.set_page_config(page_title="Strategy Training Lab", layout="wide")
-
-st.title("🧪 Strategy Training Lab: Interactive Mode")
-st.markdown("""
-**The Rules:**
-1. **Look Phase (N%)**: Observe venues to set a benchmark. You **cannot** stop here.
-2. **Search Phase**: The first venue that **beats** your benchmark is automatically selected.
-""")
-
-# --- 1. STATE MANAGEMENT ---
+# --- 1. INITIALIZE SESSION STATE (MUST BE FIRST) ---
+# This prevents the AttributeError by ensuring keys exist before the UI calls them.
 if 'lab_market' not in st.session_state:
     st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
     st.session_state.current_index = 0
@@ -20,11 +11,28 @@ if 'lab_market' not in st.session_state:
     st.session_state.choice_made = False
     st.session_state.final_choice = None
 
-# --- 2. SETTINGS ---
+# --- 2. CONFIG ---
+st.set_page_config(page_title="Strategy Training Lab", layout="wide")
+
+st.title("🧪 Strategy Training Lab: Interactive Mode")
+st.markdown("""
+**The Rules:**
+1. **Look Phase (N%)**: Observe venues to set a benchmark. You **cannot** stop here.
+2. **Search Phase**: The first venue that **beats** your benchmark is yours!
+""")
+
+# --- 3. SETTINGS & SIDEBAR ---
 with st.sidebar:
     st.header("Lab Configuration")
-    # DEFAULT TO 1% - No spoilers.
-    look_percent = st.slider("Look Phase (N %)", min_value=1.0, max_value=100.0, value=1.0, step=0.01)
+    # Defaulting to 1.00% to avoid spoilers. Allows two decimal points.
+    look_percent = st.slider(
+        "Look Phase (N %)", 
+        min_value=0.0, 
+        max_value=100.0, 
+        value=1.0, 
+        step=0.01,
+        format="%.2f"
+    )
     
     if st.button("♻️ Reset Lab / New Market"):
         st.session_state.lab_market = np.random.permutation(np.arange(1, 101))
@@ -34,10 +42,12 @@ with st.sidebar:
         st.session_state.final_choice = None
         st.rerun()
 
+# Derived variables
 market = st.session_state.lab_market
+# We floor the percentage to get the integer count of venues to observe
 n_look_count = int(np.floor(look_percent))
 
-# --- 3. THE INTERACTIVE INTERFACE ---
+# --- 4. THE INTERACTIVE INTERFACE ---
 col_ctrl, col_log = st.columns([1, 2])
 
 with col_ctrl:
@@ -58,18 +68,18 @@ with col_ctrl:
         if st.button("➡️ Reveal Next Venue", type="primary", use_container_width=True):
             val = market[curr_idx]
             
-            # Logic for Look Phase
+            # Phase 1: Benchmarking
             if curr_idx < n_look_count:
                 if val > st.session_state.benchmark:
                     st.session_state.benchmark = val
             
-            # Logic for Search Phase
+            # Phase 2: Selection
             else:
                 if val > st.session_state.benchmark:
                     st.session_state.choice_made = True
                     st.session_state.final_choice = (curr_idx + 1, val)
             
-            # Logic for the end of the line
+            # Phase 3: Forced choice at 100
             if not st.session_state.choice_made and curr_idx == 99:
                 st.session_state.choice_made = True
                 st.session_state.final_choice = (100, market[99])
@@ -113,16 +123,16 @@ with col_log:
         })
     
     if history:
-        # Most recent reveal at top for easy reading
+        # Most recent at top
         df_hist = pd.DataFrame(history).iloc[::-1]
         st.table(df_hist.set_index("Venue"))
     else:
         st.info("Adjust the slider and click 'Reveal Next' to begin.")
 
-# --- 4. AUDIT ---
+# --- 5. AUDIT ---
 if st.session_state.choice_made:
     st.divider()
-    with st.expander("🔍 View Full Market Sequence (Post-Game Audit)"):
+    with st.expander("🔍 View Full Market Sequence (Audit)"):
         audit_df = pd.DataFrame({
             "Position": range(1, 101),
             "Value": market,
@@ -131,6 +141,10 @@ if st.session_state.choice_made:
         st.dataframe(audit_df, use_container_width=True)
 
 # --- SOURCE CODE PADDING ---
+#
+#
+#
+#
 #
 #
 #

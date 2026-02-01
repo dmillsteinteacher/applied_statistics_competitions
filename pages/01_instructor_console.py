@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # --- CONFIG & SECURITY ---
-st.set_page_config(layout="wide", page_title="Market Master Console v6.8")
+st.set_page_config(layout="wide", page_title="Market Master Console v6.9")
 MASTER_PASSWORD = "admin_stats_2026" 
 
 if "authenticated" not in st.session_state:
@@ -32,27 +32,37 @@ if 'sim_total_trials' not in st.session_state:
 if 'sim_total_wins' not in st.session_state:
     st.session_state.sim_total_wins = {}
 
-# --- 1. STRATEGY REGISTRATION ---
+# Persistent Data Storage
+if 'student_data' not in st.session_state:
+    st.session_state.student_data = pd.DataFrame([
+        {"Student": "Alice", "N": 37},
+        {"Student": "Bob", "N": 10},
+        {"Student": "Charlie", "N": 65}
+    ])
+
+# --- 1. STRATEGY REGISTRATION (DECOUPLED) ---
 st.title("👨‍🏫 Teacher Console: Market Auctioneer")
 
 with st.expander("📝 Register Student Cutoffs", expanded=(st.session_state.market_list is None)):
-    if 'student_data' not in st.session_state:
-        st.session_state.student_data = pd.DataFrame([
-            {"Student": "Alice", "N": 37},
-            {"Student": "Bob", "N": 10},
-            {"Student": "Charlie", "N": 65}
-        ])
+    st.info("Edit the table below and click 'Save' to update the simulation rosters.")
     
+    # We use a key that DOES NOT sync automatically to session_state.student_data
+    # until we are ready.
     edited_df = st.data_editor(
         st.session_state.student_data,
         num_rows="dynamic",
         use_container_width=True,
-        key="editor_v6_8"
+        key="registry_editor_v6_9"
     )
     
-    if len(edited_df.columns) >= 2:
-        edited_df.columns = ["Student", "N"] + list(edited_df.columns[2:])
-    st.session_state.student_data = edited_df
+    if st.button("💾 Save Student Registry", type="primary"):
+        # Standardize columns
+        if len(edited_df.columns) >= 2:
+            edited_df.columns = ["Student", "N"] + list(edited_df.columns[2:])
+        
+        st.session_state.student_data = edited_df
+        st.success("Registry updated and saved!")
+        st.rerun()
 
 # --- 2. THE MANUAL REVEAL ENGINE ---
 st.divider()
@@ -123,7 +133,6 @@ st.header("🧪 The Truth Engine (Limit: 10,000 Trials)")
 sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
 remaining = max(0, 10000 - st.session_state.sim_total_trials)
 
-# Number input for batch size
 batch_to_add = sim_col1.number_input(
     "Trials to Add:", 
     min_value=1, 
@@ -132,7 +141,6 @@ batch_to_add = sim_col1.number_input(
     step=10
 )
 
-# Execution logic
 if remaining > 0:
     if sim_col2.button("🏁 Run Next Batch", use_container_width=True, type="primary"):
         df = st.session_state.student_data
@@ -161,9 +169,7 @@ if sim_col3.button("🗑️ Reset Simulation Data", use_container_width=True):
     st.session_state.sim_total_wins = {}
     st.rerun()
 
-# --- DISPLAY TRUTH CHART & COUNTER ---
 if st.session_state.sim_total_trials > 0:
-    # Restored Trial Counter
     st.subheader(f"📊 Current Progress: {st.session_state.sim_total_trials:,} / 10,000 Trials")
     
     n_lookup = dict(zip(st.session_state.student_data["Student"], st.session_state.student_data["N"]))
@@ -190,4 +196,4 @@ if st.session_state.market_list is not None:
 
 with st.sidebar:
     if st.button("Log Out"): st.session_state.authenticated = False; st.rerun()
-    st.caption("Auctioneer Mode v6.8")
+    st.caption("Auctioneer Mode v6.9")

@@ -41,8 +41,8 @@ if "audit_report" not in st.session_state:
     st.session_state.audit_report = None
 if "audit_verified" not in st.session_state:
     st.session_state.audit_verified = False
-if "stress_test_results" not in st.session_state:
-    st.session_state.stress_test_results = None
+if "stress_test_history" not in st.session_state:
+    st.session_state.stress_test_history = []
 
 # --- 4. HELPER FUNCTIONS ---
 def initialize_student_matrix(lab_id):
@@ -67,7 +67,7 @@ with st.sidebar:
             st.session_state.p_matrix = initialize_student_matrix(id_input)
             st.session_state.audit_report = None
             st.session_state.audit_verified = False
-            st.session_state.stress_test_results = None
+            st.session_state.stress_test_history = []
             st.success(f"Lab Initialized: {id_input}")
 
     if st.session_state.lab_id:
@@ -79,7 +79,7 @@ with st.sidebar:
             st.session_state.current_scenario = (market_choice, type_choice)
             st.session_state.audit_report = None
             st.session_state.audit_verified = False
-            st.session_state.stress_test_results = None
+            st.session_state.stress_test_history = []
 
 # --- 6. MAIN INTERFACE ---
 st.title("Venture Capital Lab")
@@ -110,7 +110,6 @@ else:
             np.random.seed(scenario_seed)
             outcomes = ["SUCCESS" if np.random.random() < student_p else "FAILURE" for _ in range(50)]
             wins = outcomes.count("SUCCESS")
-            # Creating narrative variables
             st.session_state.audit_report = {
                 "wins": wins,
                 "execution_fail": int((50-wins)*0.4),
@@ -124,38 +123,29 @@ else:
             r = st.session_state.audit_report
             st.markdown(f"""
             ### 🕵️ Confidential Memo: Sector Performance Review
-            **To:** Managing Partner  
-            **From:** Risk Assessment Division  
-            **Subject:** Forensic Review of 50 Recent Ventures
+            **To:** Managing Partner | **From:** Risk Assessment Division
             
-            Our department has concluded its investigation into the last 50 ventures launched within this specific sector. 
-            The data reveals significant headwinds but also clear pockets of viability.
-            
-            Upon review of the failed ventures, our forensic accountants identified that **{r['execution_fail']} companies** collapsed primarily due to internal execution errors and management negligence. Additionally, 
-            an analysis of the broader landscape showed that **{r['macro_fail']} ventures** failed to reach 
-            profitability because of unforeseen shifts in the competitive market.
-            
-            The remaining ventures in the 50-company sample successfully hit their exit milestones and yielded the 
-            contractual payout multiples. Please use these figures to determine our base success probability ($p$).
+            Our investigation into the last 50 ventures shows that **{r['execution_fail']} companies** failed due to execution and **{r['macro_fail']} ventures** failed due to competitive shifts. 
+            The remaining ventures successfully hit their target exit milestones.
             """)
             st.divider()
-            user_p = st.number_input("Based on the memo above, calculate the Win Probability ($p$):", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
+            user_p = st.number_input("Based on the memo, what is the Win Probability ($p$)?", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
             if st.button("Verify Audit Findings"):
                 if abs(user_p - r['p']) < 0.001:
                     st.session_state.audit_verified = True
                     st.success(f"Audit Verified. Fundamental Probability established at {r['p']:.2f}.")
                 else:
-                    st.error("Audit Discrepancy: Your probability does not align with our forensic report. Please re-read the memo.")
+                    st.error("Audit Discrepancy detected.")
 
     with tab2:
         st.subheader("Stage 2: Volatility Stress Test")
         if not st.session_state.audit_verified:
-            st.info("🔒 Research Locked: You must verify the Audit findings in Stage 1.")
+            st.info("🔒 Research Locked: Verify Stage 1 Audit to unlock.")
         else:
-            st.write(f"We have established a win probability of **{st.session_state.audit_report['p']:.2f}**. However, luck is not evenly distributed.")
-            if st.button("Simulate 100-Trial Market Cycle"):
-                career_seed = sum(ord(char) for char in st.session_state.lab_id + market + fund_type) + 777
-                np.random.seed(career_seed)
+            st.write(f"Current Probability: **{st.session_state.audit_report['p']:.2f}**. Click below to see how different careers play out under these same odds.")
+            
+            if st.button("Generate New 100-Trial Career"):
+                # No fixed seed here, allows "sampling distribution" feel
                 career = ["SUCCESS" if np.random.random() < st.session_state.audit_report['p'] else "FAILURE" for _ in range(100)]
                 
                 streak = 0
@@ -167,38 +157,39 @@ else:
                     else:
                         streak = 0
                 
-                st.session_state.stress_test_results = {"outcomes": career, "max_streak": max_streak, "wins": career.count("SUCCESS")}
+                # Save to history
+                trial_data = {"wins": career.count("SUCCESS"), "streak": max_streak, "outcomes": career}
+                st.session_state.stress_test_history.append(trial_data)
 
-            if st.session_state.stress_test_results:
-                res = st.session_state.stress_test_results
-                c1, c2 = st.columns(2)
-                c1.metric("Realized Successes", f"{res['wins']}/100")
-                c2.metric("Longest Consecutive Loss Streak", f"{res['max_streak']} Deals", delta="Critical Risk" if res['max_streak'] > 5 else None, delta_color="inverse")
+            if st.session_state.stress_test_history:
+                latest = st.session_state.stress_test_history[-1]
                 
-                st.write("**Simulated Market Ticker (Past 100 Deals):**")
-                icons = ["🟩" if r == "SUCCESS" else "🟥" for r in res['outcomes']]
+                c1, c2 = st.columns(2)
+                c1.metric("Latest Career Wins", f"{latest['wins']}/100")
+                c2.metric("Latest Max Losing Streak", f"{latest['streak']} Deals")
+                
+                st.write("**Latest Simulated Ticker:**")
+                icons = ["🟩" if r == "SUCCESS" else "🟥" for r in latest['outcomes']]
                 for i in range(0, 100, 20):
                     st.write(" ".join(icons[i:i+20]))
+                
+                if len(st.session_state.stress_test_history) > 1:
+                    st.divider()
+                    st.write("### 📊 Historical Comparison of Careers")
+                    st.write("Notice how the 'Longest Streak' varies even though the win probability is the same.")
+                    history_df = [{"Career #": i+1, "Wins": h['wins'], "Max Loss Streak": h['streak']} for i, h in enumerate(st.session_state.stress_test_history)]
+                    st.table(history_df)
 
     with tab3:
         st.subheader("Stage 3: Capital Calibration")
-        if not st.session_state.stress_test_results:
-            st.info("🔒 Research Locked: Complete the Stage 2 Stress Test to unlock Calibration.")
+        if not st.session_state.stress_test_history:
+            st.info("🔒 Research Locked: Run at least one Stress Test in Stage 2 to unlock.")
         else:
-            st.markdown("""
-            ### Portfolio Sizing Strategy
-            Now that you understand the sector's success rate and its inherent volatility, you must choose 
-            what fraction of your total fund (**$f$**) you will invest in each startup.
-            """)
+            st.markdown("Choose your investment fraction (**$f$**) and simulate a final 50-round career.")
+            f = st.slider("Investment Size ($f$): % of fund per deal", 0, 100, 10) / 100
             
-            f = st.slider("Investment Size ($f$): Percentage of Total Fund to risk per deal", 0, 100, 10) / 100
-            
-            if st.button("Simulate 50-Round Career with this Sizing"):
-                # Simulation Logic
-                sim_seed = int(time.time())
-                np.random.seed(sim_seed)
-                
-                balance = 1000.0 # Starting Fund
+            if st.button("Execute 50-Round Career"):
+                balance = 1000.0
                 history = [balance]
                 ruined = False
                 
@@ -217,13 +208,9 @@ else:
                     history.append(balance)
                 
                 st.write(f"### Final Fund Balance: **${balance:,.2f}**")
-                if ruined:
-                    st.error("🚨 FUND INSOLVENT: Your investment sizing led to total capital depletion.")
-                elif balance > 1000:
-                    st.success(f"Growth achieved! Total Profit: ${balance-1000:,.2f}")
-                else:
-                    st.warning("Capital Erosion: Your sizing resulted in a net loss compared to your starting fund.")
-                
+                if ruined: st.error("🚨 FUND INSOLVENT")
+                elif balance > 1000: st.success(f"Growth achieved! Profit: ${balance-1000:,.2f}")
+                else: st.warning("Net Loss.")
                 st.line_chart(history)
 
 # --- PADDING TO PREVENT TRUNCATION ---

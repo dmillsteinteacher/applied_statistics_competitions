@@ -13,15 +13,15 @@ B_VALUES = {
 }
 
 MARKET_STORIES = {
-    "Market A: The Boom": "Consumer spending is at an all-time high and credit is nearly free. Everything feels easy.",
-    "Market B: The Squeeze": "Prices are spiking and store shelves are empty. Companies are burning through cash fast.",
-    "Market C: Rule Change": "The government just passed a massive law shifting funding toward specific sectors."
+    "Market A: The Boom": "Consumer spending is at an all-time high and credit is nearly free. In this 'Goldilocks' economy, almost any well-run business can find a customer.",
+    "Market B: The Squeeze": "Inflation is rampant and store shelves are empty. The 'Stagflation' environment is punishing for companies with high overhead and thin margins.",
+    "Market C: Rule Change": "The regulatory landscape has shifted. New government mandates have created massive tailwinds for specific sectors while suddenly bankrupting others."
 }
 
 TYPE_STORIES = {
-    "Type 1: The Basics": "This fund focuses on 'Utility' plays: water pipes, power lines, and essential infrastructure.",
-    "Type 2: Tech Apps": "This fund focuses on scalable platforms: social media, delivery apps, and online gaming.",
-    "Type 3: Big Science": "This fund focuses on frontier tech: new medicines, rocket engines, and experimental AI."
+    "Type 1: The Basics": "This fund focuses on 'Utility' plays: water pipes, power lines, and essential infrastructure. Low growth, but steady demand.",
+    "Type 2: Tech Apps": "This fund focuses on scalable digital platforms: social media, gaming, and delivery. High competition, but explosive upside.",
+    "Type 3: Big Science": "This fund focuses on frontier technology: rocket engines, deep-sea mining, and experimental AI. High failure rate, but world-changing payouts."
 }
 
 BASE_P_MATRIX = {
@@ -68,10 +68,11 @@ with st.sidebar:
             st.session_state.audit_report = None
             st.session_state.audit_verified = False
             st.session_state.stress_test_history = []
-            st.success(f"Lab Initialized: {id_input}")
+            st.success(f"Lab Environment Initialized: {id_input}")
 
     if st.session_state.lab_id:
         st.divider()
+        st.subheader("Select Research Cell")
         market_choice = st.selectbox("Market Environment", list(BASE_P_MATRIX.keys()))
         type_choice = st.selectbox("Fund Type", list(B_VALUES.keys()))
         
@@ -87,29 +88,32 @@ st.title("Venture Capital Lab")
 if not st.session_state.lab_id:
     st.warning("⚠️ Access Denied: Please enter your **Lab ID** in the sidebar to begin.")
 elif not st.session_state.current_scenario:
-    st.info("Select a scenario in the sidebar to begin.")
+    st.info("Select a Market and Fund Type in the sidebar to open the Research Lab.")
 else:
     market, fund_type = st.session_state.current_scenario
     student_p = st.session_state.p_matrix[market][fund_type]
     b = B_VALUES[fund_type]
     
-    with st.expander("📄 Intelligence Briefing", expanded=True):
+    with st.expander("📄 Intelligence Briefing: Sector & Market Analysis", expanded=True):
         col_m, col_t = st.columns(2)
         with col_m:
-            st.write(f"**Market Dynamics:**\n\n*{MARKET_STORIES[market]}*")
+            st.write(f"**Current Market Conditions:**\n\n*{MARKET_STORIES[market]}*")
         with col_t:
-            st.write(f"**Sector Profile:**\n\n*{TYPE_STORIES[fund_type]}*")
-        st.write(f"**Contractual Terms:** Successful exits are legally bound to a **{b}x** payout on capital deployed.")
+            st.write(f"**Investment Sector:**\n\n*{TYPE_STORIES[fund_type]}*")
+        st.markdown(f"**Payout Terms:** Successful investments in this category are contractually bound to yield a **{b}x profit multiple** on capital deployed.")
     
     tab1, tab2, tab3 = st.tabs(["Stage 1: The Audit", "Stage 2: Stress Test", "Stage 3: Calibration"])
     
     with tab1:
-        st.subheader("Stage 1: Forensic Audit Analysis")
+        st.subheader("Stage 1: Forensic Probability Discovery")
+        st.markdown("Before deploying capital, we must establish the base success rate. Our analysts have audited 50 recent ventures in this specific sector.")
+        
         if st.button("Request Internal Audit Report"):
             scenario_seed = sum(ord(char) for char in st.session_state.lab_id + market + fund_type)
             np.random.seed(scenario_seed)
             outcomes = ["SUCCESS" if np.random.random() < student_p else "FAILURE" for _ in range(50)]
             wins = outcomes.count("SUCCESS")
+            
             st.session_state.audit_report = {
                 "wins": wins,
                 "execution_fail": int((50-wins)*0.4),
@@ -121,105 +125,37 @@ else:
 
         if st.session_state.audit_report:
             r = st.session_state.audit_report
+            st.info("### 🕵️ INTERNAL MEMO: Sector Performance Review")
             st.markdown(f"""
-            ### 🕵️ Confidential Memo: Sector Performance Review
-            **To:** Managing Partner | **From:** Risk Assessment Division
-            
-            Our investigation into the last 50 ventures shows that **{r['execution_fail']} companies** failed due to execution and **{r['macro_fail']} ventures** failed due to competitive shifts. 
-            The remaining ventures successfully hit their target exit milestones.
+            **To:** Managing Partner  
+            **From:** Forensic Risk Division  
+            **Subject:** Outcome Audit for 50 Sample Ventures  
+
+            Our team has completed a deep-dive investigation into the last 50 ventures launched within this specific sector and market environment. The goal was to separate viable business models from those that succumbed to internal or external pressures.
+
+            **The Audit reveals the following findings:**
+            * **Execution Failures:** We identified that **{r['execution_fail']} companies** suffered from fatal internal mismanagement, including poor capital allocation and inability to scale operations. 
+            * **Market Casualties:** An additional **{r['macro_fail']} ventures** were unable to survive shifting competitive pressures and broader economic headwinds, leading to total liquidation.
+            * **Successful Exits:** The remaining companies in the 50-venture sample achieved their target exit milestones, yielding the expected payouts for their investors.
+
+            Please use these findings to calibrate our success probability ($p$) for our upcoming investment rounds.
             """)
             st.divider()
-            user_p = st.number_input("Based on the memo, what is the Win Probability ($p$)?", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
-            if st.button("Verify Audit Findings"):
+            user_p = st.number_input("Based on the Forensic Audit, what is the Win Probability ($p$)?", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
+            if st.button("Verify Findings"):
                 if abs(user_p - r['p']) < 0.001:
                     st.session_state.audit_verified = True
-                    st.success(f"Audit Verified. Fundamental Probability established at {r['p']:.2f}.")
+                    st.success(f"Audit Verified. Fundamental Probability established at {r['p']:.2f}. Proceed to Stage 2.")
                 else:
-                    st.error("Audit Discrepancy detected.")
+                    st.error("Probability Mismatch: Your calculation does not align with the forensic data provided. Please re-examine the Memo.")
 
     with tab2:
         st.subheader("Stage 2: Volatility Stress Test")
         if not st.session_state.audit_verified:
-            st.info("🔒 Research Locked: Verify Stage 1 Audit to unlock.")
+            st.info("🔒 Research Locked: You must verify the Forensic Audit in Stage 1 before running stress tests.")
         else:
-            st.write(f"Current Probability: **{st.session_state.audit_report['p']:.2f}**. Click below to see how different careers play out under these same odds.")
+            st.write(f"Fundamental Probability: **{st.session_state.audit_report['p']:.2f}**")
+            st.markdown("Luck clusters. Click below to simulate a **100-deal 'career' cycle**. You can run this multiple times to see the range of possible outcomes.")
             
-            if st.button("Generate New 100-Trial Career"):
-                # No fixed seed here, allows "sampling distribution" feel
-                career = ["SUCCESS" if np.random.random() < st.session_state.audit_report['p'] else "FAILURE" for _ in range(100)]
-                
-                streak = 0
-                max_streak = 0
-                for x in career:
-                    if x == "FAILURE":
-                        streak += 1
-                        max_streak = max(max_streak, streak)
-                    else:
-                        streak = 0
-                
-                # Save to history
-                trial_data = {"wins": career.count("SUCCESS"), "streak": max_streak, "outcomes": career}
-                st.session_state.stress_test_history.append(trial_data)
-
-            if st.session_state.stress_test_history:
-                latest = st.session_state.stress_test_history[-1]
-                
-                c1, c2 = st.columns(2)
-                c1.metric("Latest Career Wins", f"{latest['wins']}/100")
-                c2.metric("Latest Max Losing Streak", f"{latest['streak']} Deals")
-                
-                st.write("**Latest Simulated Ticker:**")
-                icons = ["🟩" if r == "SUCCESS" else "🟥" for r in latest['outcomes']]
-                for i in range(0, 100, 20):
-                    st.write(" ".join(icons[i:i+20]))
-                
-                if len(st.session_state.stress_test_history) > 1:
-                    st.divider()
-                    st.write("### 📊 Historical Comparison of Careers")
-                    st.write("Notice how the 'Longest Streak' varies even though the win probability is the same.")
-                    history_df = [{"Career #": i+1, "Wins": h['wins'], "Max Loss Streak": h['streak']} for i, h in enumerate(st.session_state.stress_test_history)]
-                    st.table(history_df)
-
-    with tab3:
-        st.subheader("Stage 3: Capital Calibration")
-        if not st.session_state.stress_test_history:
-            st.info("🔒 Research Locked: Run at least one Stress Test in Stage 2 to unlock.")
-        else:
-            st.markdown("Choose your investment fraction (**$f$**) and simulate a final 50-round career.")
-            f = st.slider("Investment Size ($f$): % of fund per deal", 0, 100, 10) / 100
-            
-            if st.button("Execute 50-Round Career"):
-                balance = 1000.0
-                history = [balance]
-                ruined = False
-                
-                for _ in range(50):
-                    if balance < 1.0:
-                        ruined = True
-                        balance = 0
-                        history.append(balance)
-                        continue
-                    
-                    bet = balance * f
-                    if np.random.random() < st.session_state.audit_report['p']:
-                        balance += (bet * b)
-                    else:
-                        balance -= bet
-                    history.append(balance)
-                
-                st.write(f"### Final Fund Balance: **${balance:,.2f}**")
-                if ruined: st.error("🚨 FUND INSOLVENT")
-                elif balance > 1000: st.success(f"Growth achieved! Profit: ${balance-1000:,.2f}")
-                else: st.warning("Net Loss.")
-                st.line_chart(history)
-
-# --- PADDING TO PREVENT TRUNCATION ---
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# --- END OF FILE ---
+            if st.button("Simulate 100-Deal Career Cycle"):
+                career = ["SUCCESS" if np.random.random() < st.

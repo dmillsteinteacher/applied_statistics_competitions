@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import time
 
 # --- 1. APP CONFIGURATION ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
@@ -40,6 +41,8 @@ if "audit_report" not in st.session_state:
     st.session_state.audit_report = None
 if "audit_verified" not in st.session_state:
     st.session_state.audit_verified = False
+if "stress_test_results" not in st.session_state:
+    st.session_state.stress_test_results = None
 
 # --- 4. HELPER FUNCTIONS ---
 def initialize_student_matrix(lab_id):
@@ -64,6 +67,7 @@ with st.sidebar:
             st.session_state.p_matrix = initialize_student_matrix(id_input)
             st.session_state.audit_report = None
             st.session_state.audit_verified = False
+            st.session_state.stress_test_results = None
             st.success(f"Lab Initialized: {id_input}")
 
     if st.session_state.lab_id:
@@ -75,6 +79,7 @@ with st.sidebar:
             st.session_state.current_scenario = (market_choice, type_choice)
             st.session_state.audit_report = None
             st.session_state.audit_verified = False
+            st.session_state.stress_test_results = None
 
 # --- 6. MAIN INTERFACE ---
 st.title("Venture Capital Lab")
@@ -88,76 +93,88 @@ else:
     student_p = st.session_state.p_matrix[market][fund_type]
     b = B_VALUES[fund_type]
     
-    with st.expander("📄 Intelligence Briefing: Sector & Market Analysis", expanded=True):
+    with st.expander("📄 Intelligence Briefing", expanded=True):
         col_m, col_t = st.columns(2)
         with col_m:
-            st.write(f"**Current Market Conditions:**\n\n*{MARKET_STORIES[market]}*")
+            st.write(f"**Market:** {market}\n\n*{MARKET_STORIES[market]}*")
         with col_t:
-            st.write(f"**Investment Sector:**\n\n*{TYPE_STORIES[fund_type]}*")
+            st.write(f"**Sector:** {fund_type}\n\n*{TYPE_STORIES[fund_type]}*")
         st.write(f"**Payout Multiplier:** Successful investments yield a **{b}x** profit multiple.")
     
     tab1, tab2, tab3 = st.tabs(["Stage 1: The Audit", "Stage 2: Stress Test", "Stage 3: Calibration"])
     
     with tab1:
         st.subheader("Stage 1: Probability Discovery")
-        st.markdown("Your analyst team has completed a forensic audit of the last **50 ventures** in this specific sector.")
-        
         if st.button("Generate Audit Report"):
             scenario_seed = sum(ord(char) for char in st.session_state.lab_id + market + fund_type)
             np.random.seed(scenario_seed)
             outcomes = ["SUCCESS" if np.random.random() < student_p else "FAILURE" for _ in range(50)]
-            
             wins = outcomes.count("SUCCESS")
-            # Divide failures into narrative categories
-            fail_a = int((50 - wins) * 0.6)
-            fail_b = (50 - wins) - fail_a
-            
-            st.session_state.audit_report = {
-                "wins": wins,
-                "fail_a": fail_a,
-                "fail_b": fail_b,
-                "total": 50,
-                "p": wins / 50
-            }
+            st.session_state.audit_report = {"wins": wins, "fail_a": int((50-wins)*0.6), "fail_b": (50-wins)-int((50-wins)*0.6), "total": 50, "p": wins/50}
             st.session_state.audit_verified = False
 
         if st.session_state.audit_report:
             report = st.session_state.audit_report
-            st.info("### 🕵️ INTERNAL AUDIT MEMO")
-            st.write(f"""
-            **Subject:** Sector Performance Review (N={report['total']})
-            
-            Our investigation into the 50 most recent ventures in this category reveals a complex landscape. 
-            Of the total cases reviewed, **{report['fail_a']} companies** were found to have collapsed due to poor management 
-            or execution errors. Another **{report['fail_b']} companies** were liquidated following unexpected 
-            shifts in the competitive landscape. 
-            
-            The remaining companies in our study achieved their target exit milestones and are considered successful.
-            """)
-            st.write("---")
-            
-            user_p = st.number_input("Based on this internal memo, what is the Win Probability ($p$)?", 
-                                    min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
-            
+            st.info(f"### 🕵️ INTERNAL AUDIT MEMO\n\nOut of {report['total']} cases, **{report['fail_a']}** failed due to execution and **{report['fail_b']}** failed due to competition. The rest succeeded.")
+            user_p = st.number_input("What is the Win Probability (p)?", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
             if st.button("Verify Findings"):
                 if abs(user_p - report['p']) < 0.001:
                     st.session_state.audit_verified = True
-                    st.success(f"Correct. Research phase complete. $p = {report['p']:.2f}$")
+                    st.success(f"Correct. p = {report['p']:.2f}")
                 else:
-                    st.error("Your probability calculation does not match the audit data. Check your math: (Total - Failures) / Total.")
+                    st.error("Incorrect calculation.")
 
     with tab2:
         st.subheader("Stage 2: Volatility Stress Test")
         if not st.session_state.audit_verified:
             st.info("🔒 Complete and Verify the Stage 1 Audit to unlock.")
         else:
-            st.write(f"With $p = {st.session_state.audit_report['p']:.2f}$, watch how luck clusters over 100 trials.")
-            # Ready for 100-flip logic
+            st.markdown(f"**Target Probability:** $p = {st.session_state.audit_report['p']:.2f}$")
+            st.write("Even with a known success rate, luck arrives in clusters. Running 100 trials to simulate a full career cycle...")
+            
+            if st.button("Simulate 100-Trial Career"):
+                # Use a different seed from Audit to ensure new randomness
+                career_seed = sum(ord(char) for char in st.session_state.lab_id + market + fund_type) + 999
+                np.random.seed(career_seed)
+                career_outcomes = ["SUCCESS" if np.random.random() < st.session_state.audit_report['p'] else "FAILURE" for _ in range(100)]
+                
+                # Calculate streaks
+                max_loss_streak = 0
+                current_streak = 0
+                for res in career_outcomes:
+                    if res == "FAILURE":
+                        current_streak += 1
+                        max_loss_streak = max(max_loss_streak, current_streak)
+                    else:
+                        current_streak = 0
+                
+                st.session_state.stress_test_results = {
+                    "outcomes": career_outcomes,
+                    "max_loss_streak": max_loss_streak,
+                    "win_count": career_outcomes.count("SUCCESS")
+                }
+
+            if st.session_state.stress_test_results:
+                res = st.session_state.stress_test_results
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Actual Wins", f"{res['win_count']}/100")
+                col2.metric("Longest Losing Streak", f"{res['max_loss_streak']} in a row", delta="High Risk!" if res['max_loss_streak'] > 4 else None, delta_color="inverse")
+                
+                st.write("**Visual Career Path (100 Trials):**")
+                icons = ["🟩" if r == "SUCCESS" else "🟥" for r in res['outcomes']]
+                # Grid display
+                for i in range(0, 100, 20):
+                    st.write(" ".join(icons[i:i+20]))
+                
+                st.warning(f"**The Sizing Lesson:** If you had invested 25% of your fund in every deal, a losing streak of **{res['max_loss_streak']}** would have likely wiped you out completely. Think about this when you reach Stage 3.")
 
     with tab3:
         st.subheader("Stage 3: Calibration")
-        if not st.session_state.audit_verified:
-            st.info("🔒 Complete and Verify the Stage 1 Audit to unlock.")
+        if st.session_state.stress_test_results is None:
+            st.info("🔒 Complete the Stage 2 Stress Test to unlock.")
+        else:
+            st.write("Use the slider to find an investment size ($f$) that maximizes your fund.")
 
 # --- PADDING TO PREVENT TRUNCATION ---
 # 

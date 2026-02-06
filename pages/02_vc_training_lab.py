@@ -33,6 +33,7 @@ with st.sidebar:
     st.title("👨‍💼 VC Research Desk")
     id_in = st.text_input("Enter Lab ID:", value=st.session_state.lab_id)
     
+    # Initialize Matrix ONLY on Lab ID change
     if id_in != st.session_state.lab_id:
         st.session_state.lab_id = id_in
         np.random.seed(sum(ord(c) for c in id_in))
@@ -46,16 +47,24 @@ with st.sidebar:
         st.divider()
         m_sel = st.selectbox("Market Environment", list(nav.MARKET_STORIES.keys()))
         t_sel = st.selectbox("Sector Type", list(nav.TYPE_STORY.keys()))
-        if st.button("Open Research Lab"):
-            st.session_state.cur_scen = (m_sel, t_sel)
-            st.session_state.audit, st.session_state.verified, st.session_state.history = None, False, []
+        
+        # Check if the selection has changed from what is currently "open"
+        current = st.session_state.cur_scen
+        if st.button("Open Research Lab") or (current and (m_sel != current[0] or t_sel != current[1])):
+            if not current or (m_sel != current[0] or t_sel != current[1]):
+                st.session_state.cur_scen = (m_sel, t_sel)
+                # Reset progress for the NEW scenario
+                st.session_state.audit, st.session_state.verified, st.session_state.history = None, False, []
+                st.rerun()
 
 # --- 5. MAIN INTERFACE ---
 if not st.session_state.lab_id or not st.session_state.cur_scen:
     st.info("👋 Welcome. Enter a Lab ID and select a scenario in the sidebar to begin.")
 else:
     mkt, sec = st.session_state.cur_scen
-    p_true, b = st.session_state.p_matrix[mkt][sec], nav.B_VALS[sec]
+    # This line now dynamically pulls the unique P for the current selection
+    p_true = st.session_state.p_matrix[mkt][sec]
+    b = nav.B_VALS[sec]
     
     with st.expander("📄 Intelligence Briefing", expanded=True):
         st.write(f"**Current Context:** {nav.MARKET_STORIES[mkt]}")
@@ -67,6 +76,7 @@ else:
     with t1:
         st.subheader("Probability Discovery")
         if st.button("Request Audit Report"):
+            # The audit is now run against the FRESH p_true
             st.session_state.audit = eng.run_audit(st.session_state.lab_id, mkt, sec, p_true)
             st.session_state.verified = False
         
@@ -103,24 +113,15 @@ else:
         else:
             f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1)
             if st.button("Deploy Capital"):
+                # Uses the observed P from the current audit
                 bal, hist, fail = eng.run_fund_simulation(f, st.session_state.audit['p_observed'], b)
                 
                 st.write(f"### Final Fund Value: ${bal:,.2f}")
                 if fail: st.error("🚨 FUND INSOLVENT: You ran out of capital before round 50.")
                 
-                # COMPATIBLE CHARTING
-                st.write("#### Equity Curve: Portfolio Value Over 50 Rounds")
                 chart_df = pd.DataFrame(hist, columns=["Portfolio Value"])
+                st.write("#### Equity Curve: Portfolio Value Over 50 Rounds")
                 st.line_chart(chart_df)
                 st.caption("Y-Axis: Portfolio Value ($) | X-Axis: Investment Round (0-50)")
 
 # --- PADDING ---
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# --- END OF FILE ---

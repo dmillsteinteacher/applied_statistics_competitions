@@ -2,9 +2,12 @@ import streamlit as st
 import importlib.util
 import os
 import numpy as np
-import pandas as pd  # Added for better chart handling
+import pandas as pd
 
-# --- 1. STABLE MODULE LOADING (CACHED) ---
+# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
+st.set_page_config(page_title="VC Training Lab", layout="wide")
+
+# --- 2. STABLE MODULE LOADING (CACHED) ---
 @st.cache_resource
 def load_mod(name):
     path = os.path.join(os.path.dirname(__file__), name)
@@ -20,14 +23,12 @@ except Exception as e:
     st.error(f"Module Load Error: {e}")
     st.stop()
 
-st.set_page_config(page_title="VC Training Lab", layout="wide")
-
-# --- 2. SESSION STATE ---
+# --- 3. SESSION STATE ---
 for k in ["lab_id", "p_matrix", "cur_scen", "audit", "verified", "history"]:
     if k not in st.session_state:
         st.session_state[k] = "" if k == "lab_id" else [] if k == "history" else None
 
-# --- 3. SIDEBAR ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.title("👨‍💼 VC Research Desk")
     id_in = st.text_input("Enter Lab ID:", value=st.session_state.lab_id)
@@ -49,7 +50,7 @@ with st.sidebar:
             st.session_state.cur_scen = (m_sel, t_sel)
             st.session_state.audit, st.session_state.verified, st.session_state.history = None, False, []
 
-# --- 4. MAIN INTERFACE ---
+# --- 5. MAIN INTERFACE ---
 if not st.session_state.lab_id or not st.session_state.cur_scen:
     st.info("👋 Welcome. Enter a Lab ID and select a scenario in the sidebar to begin.")
 else:
@@ -100,14 +101,13 @@ else:
         st.subheader("Capital Deployment Simulation")
         if not st.session_state.history: st.warning("🔒 Please run at least one Stress Test in Stage 2.")
         else:
-            f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1, help="What percentage of your current cash will you put into every deal?")
+            f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1)
             if st.button("Deploy Capital"):
                 bal, hist, fail = eng.run_fund_simulation(f, st.session_state.audit['p_observed'], b)
                 
                 st.write(f"### Final Fund Value: ${bal:,.2f}")
                 if fail: st.error("🚨 FUND INSOLVENT: You ran out of capital before round 50.")
                 
-                # DATA PREP AND ENHANCED PLOTTING
                 chart_df = pd.DataFrame(hist, columns=["Portfolio Value"])
                 st.write("#### Equity Curve: Fund Growth Over 50 Rounds")
                 st.line_chart(
@@ -119,12 +119,4 @@ else:
                 st.caption("Tracking the journey of your $1,000 starting capital.")
 
 # --- PADDING ---
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# --- END OF FILE ---
+# (8 lines here)

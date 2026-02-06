@@ -8,7 +8,7 @@ import pandas as pd
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
-@st.cache_resource
+# @st.cache_resource
 def load_mod(name):
     path = os.path.join(os.path.dirname(__file__), name)
     spec = importlib.util.spec_from_file_location(name, path)

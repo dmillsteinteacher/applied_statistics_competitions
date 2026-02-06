@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from lab_narrative import B_VALS, MARKET_STORIES, TYPE_STORY, MEMO_TEMPLATE
+from 02_vc_lab_narrative import B_VALS, MARKET_STORIES, TYPE_STORY, MEMO_TEMPLATE
 
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 

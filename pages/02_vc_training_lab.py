@@ -108,15 +108,19 @@ else:
                 st.write(f"### Final Fund Value: ${bal:,.2f}")
                 if fail: st.error("🚨 FUND INSOLVENT: You ran out of capital before round 50.")
                 
+                # COMPATIBLE CHARTING
+                st.write("#### Equity Curve: Portfolio Value Over 50 Rounds")
                 chart_df = pd.DataFrame(hist, columns=["Portfolio Value"])
-                st.write("#### Equity Curve: Fund Growth Over 50 Rounds")
-                st.line_chart(
-                    chart_df,
-                    y="Portfolio Value",
-                    x_label="Investment Round",
-                    y_label="Portfolio Value ($)"
-                )
-                st.caption("Tracking the journey of your $1,000 starting capital.")
+                st.line_chart(chart_df)
+                st.caption("Y-Axis: Portfolio Value ($) | X-Axis: Investment Round (0-50)")
 
 # --- PADDING ---
-# (8 lines here)
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# --- END OF FILE ---

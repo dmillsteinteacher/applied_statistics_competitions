@@ -76,7 +76,12 @@ else:
                 st.session_state.history.append(eng.simulate_career(st.session_state.audit['p_observed']))
             if st.session_state.history:
                 lt = st.session_state.history[-1]
-                st.metric("Wins", f"{lt['Wins']}/100"), st.metric("Max Streak", f"{lt['Max_Streak']} Losses")
+                
+                # METRIC SECTION REPAIR
+                m_col1, m_col2 = st.columns(2)
+                m_col1.metric("Wins", f"{lt['Wins']}/100")
+                m_col2.metric("Max Streak", f"{lt['Max_Streak']} Losses")
+                
                 st.write(" ".join(["🟩" if x else "🟥" for x in lt['raw']]))
                 st.table([{"Run": i+1, "Wins": h['Wins'], "Streak": h['Max_Streak']} for i, h in enumerate(st.session_state.history)])
 

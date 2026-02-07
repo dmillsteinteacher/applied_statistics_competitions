@@ -90,8 +90,54 @@ else:
             st.warning("🔒 Please verify the Audit in Stage 1.")
         else:
             p_val = st.session_state.audit['p_observed']
-            st.info(f"""
-            **Research Goal:** Investigating the maximum number of consecutive failures 
-            one might see with a **{p_val:.2f}** probability of success. 
             
-            *VC
+            # Using parenthesized strings to prevent truncation errors
+            msg = (
+                f"**Research Goal:** Investigating the maximum number of consecutive failures "
+                f"one might see with a **{p_val:.2f}** probability of success. \n\n"
+                f"*VC Insight: This simulation represents a 100-deal career. Even with a "
+                f"{p_val:.1%} success rate, 'clumps' of losses can be deep and psychologically taxing.*"
+            )
+            st.info(msg)
+
+            if st.button("Simulate 100-Deal Career"):
+                st.session_state.history.append(eng.simulate_career(p_val))
+            
+            if st.session_state.history:
+                lt = st.session_state.history[-1]
+                m_col1, m_col2 = st.columns(2)
+                m_col1.metric("Total Wins", f"{lt['Wins']}/100")
+                m_col2.metric("Max Consecutive Failures", f"{lt['Max_Streak']}")
+                st.write("### Sequence of Outcomes")
+                st.write(" ".join(["🟩" if x else "🟥" for x in lt['raw']]))
+                with st.expander("View Simulation History"):
+                    st.table([{"Run": i+1, "Wins": h['Wins'], "Max Loss Streak": h['Max_Streak']} 
+                              for i, h in enumerate(st.session_state.history)])
+
+    with t3:
+        st.subheader("Capital Deployment Simulation")
+        if not st.session_state.history: 
+            st.warning("🔒 Complete Stage 2.")
+        else:
+            f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1)
+            if st.button("Deploy Capital"):
+                bal, hst, fail = eng.run_fund_simulation(f, st.session_state.audit['p_observed'], b)
+                st.write(f"### Final Fund Value: ${bal:,.2f}")
+                if fail: st.error("🚨 FUND INSOLVENT")
+                chart_df = pd.DataFrame(hst, columns=["Portfolio Value"])
+                st.write("#### Equity Curve: Portfolio Value Over 50 Rounds")
+                st.line_chart(chart_df)
+                st.caption("Y-Axis: Portfolio Value ($) | X-Axis: Investment Round (0-50)")
+
+# --- SAFETY PADDING ---
+# 1
+# 2
+# 3
+# 4
+# 5
+# 6
+# 7
+# 8
+# 9
+# 10
+# --- END OF FILE ---

@@ -16,7 +16,6 @@ engine = load_mod("02_vc_lab_engine.py")
 nav = load_mod("02_vc_lab_narrative.py")
 
 # --- TOP LEVEL RESET ---
-# This clears the session state and forces a fresh start
 if st.button("🔄 Start New Scenario (Clear All Data)"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
@@ -52,7 +51,8 @@ with tab1:
 # --- TAB 2: VERIFICATION ---
 with tab2:
     st.header("Step 2: Probability Verification")
-    if "current_p" not in st.session_state:
+    # SAFETY CHECK: Prevent crash after reset
+    if "sector" not in st.session_state:
         st.warning("Please complete the Audit in Phase 1 first.")
     else:
         st.write(f"Testing for: **{st.session_state.sector}** in **{st.session_state.market}**")
@@ -79,8 +79,9 @@ with tab2:
 # --- TAB 3: STRATEGY ---
 with tab3:
     st.header("Step 3: Determine Allocation")
-    if not st.session_state.get('p_verified', False):
-        st.warning("Locked: Verify probability in Phase 1.")
+    # SAFETY CHECK: Prevent crash if state is empty or not yet verified
+    if "sector" not in st.session_state or not st.session_state.get('p_verified', False):
+        st.warning("Locked: Verify probability in Phase 1 and 2.")
     else:
         # Configuration
         sector_choice = st.session_state.sector
@@ -111,34 +112,4 @@ with tab3:
             is_insolvent = path[-1] <= 1.0
             p_color = "#e74c3c" if is_insolvent else "#2ecc71"
             
-            ax.plot(steps, path, color=p_color, linewidth=2)
-            ax.fill_between(steps, path, color=p_color, alpha=0.1)
-            
-            # Format the plot on a log scale for better exponential visibility
-            ax.set_yscale('log')
-            ax.set_ylim(bottom=0.1) 
-            ax.set_ylabel("Wealth (Log Scale)")
-            ax.set_xlabel("Reinvestment Cycles")
-            ax.grid(True, which="both", ls="-", alpha=0.1)
-            
-            st.pyplot(fig)
-            plt.close(fig) # Memory cleanup
-
-            st.divider()
-
-            # Batch Statistics Summary (The 100-run aggregate)
-            st.subheader("Strategy Statistics (Batch of 100)")
-            c1, c2 = st.columns(2)
-            c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
-            c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
-
-            with st.expander("Understanding the Insolvency Rate"):
-                st.write(f"""
-                The **Insolvency Rate** represents the probability of total ruin. 
-                Even if your chart above is green, a high insolvency rate 
-                means your strategy is likely 'overbetting' and would eventually 
-                fail in many parallel universes.
-                """)
-
-# --- EOF PADDING ---
-# This ensures no truncation issues on final closing characters.
+            ax.plot

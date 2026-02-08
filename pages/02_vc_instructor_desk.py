@@ -115,52 +115,79 @@ if pwd == "VC_LEADER":
             st.session_state.sim_total_trials += num_to_run
             st.rerun()
 
-        # --- 7. HIGH-DENSITY LEADERBOARD DISPLAY ---
+        # --- 7. THE TRAPPED LEADERBOARD (LOG-SCALE & SHOCK REVEAL) ---
+        st.divider()
+        st.subheader("📊 Market Leaderboard")
         st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
         
         if st.session_state.sim_total_trials > 0:
             leaderboard_data = []
             for name, results in st.session_state.results_data.items():
                 arr = np.array(results)
-                total_wealth = np.sum(arr)
-                med = np.median(arr)
-                ins = np.sum(arr <= 1.0) / len(arr)
+                total_w = np.sum(arr)
+                # Log10 scale to keep "Unicorns" from squashing the rest of the class
+                log_val = np.log10(total_w + 1)
+                
                 leaderboard_data.append({
                     "Name": name, 
-                    "TotalWealth": total_wealth,
-                    "Median": med, 
-                    "Insolvency": ins,
+                    "TotalWealth": total_w,
+                    "LogVal": log_val,
+                    "Median": np.median(arr), 
+                    "Insolvency": np.sum(arr <= 1.0) / len(arr),
                     "Color": st.session_state.colors.get(name, "#1C83E1")
                 })
             
-            # Sort by Total Wealth (The Race)
-            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
-            max_aum = leaderboard_data[0]['TotalWealth'] if leaderboard_data[0]['TotalWealth'] > 0 else 1
+            # --- DYNAMIC SORTING ---
+            # Sort by AUM if hidden, but snap to Median if Revealed
+            if not show_truth:
+                leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
+            else:
+                leaderboard_data = sorted(leaderboard_data, key=lambda x: x['Median'], reverse=True)
 
-            st.write("---")
-            # Container for the high-density race
+            # Max log value for relative bar widths
+            max_log = max([entry['LogVal'] for entry in leaderboard_data]) if leaderboard_data else 1
+
+            # Header Labels
+            h_col1, h_col2, h_col3 = st.columns([0.15, 0.55, 0.30])
+            h_col1.caption("**Manager**")
+            h_col2.caption("**Total Assets (Log Scale Race)**")
+            h_col3.caption("**The Reality**" if show_truth else "**Fund Status**")
+
+            # --- THE RACE TRACK ---
             for entry in leaderboard_data:
-                rel_width = (entry['TotalWealth'] / max_aum * 100)
+                # Calculate bar width based on log scale
+                rel_width = (entry['LogVal'] / max_log * 100)
                 
-                # Using custom HTML for a tight, single-line layout
-                # Name (15%) | Bar (60%) | Stats (25%)
+                # Logic for the "Reveal"
+                if not show_truth:
+                    status_text = "🟢 Active" if entry['TotalWealth'] > 0 else "🔴 Liquidated"
+                    text_color = "#444"
+                else:
+                    # The "Shock" reveal: Red for bankruptcy (<$100), Green for profit
+                    status_text = f"**Med: ${entry['Median']:,.2f}** ({entry['Insolvency']:.0%} Default)"
+                    text_color = "#D32F2F" if entry['Median'] < 100 else "#2E7D32"
+
                 race_html = f"""
-                <div style="display: flex; align-items: center; margin-bottom: 4px; font-family: sans-serif;">
-                    <div style="width: 15%; text-align: right; padding-right: 10px; font-weight: bold; font-size: 0.9rem; overflow: hidden; white-space: nowrap;">
+                <div style="display: flex; align-items: center; margin-bottom: 6px; font-family: sans-serif;">
+                    <div style="width: 15%; text-align: right; padding-right: 12px; font-weight: bold; font-size: 0.85rem; overflow: hidden; white-space: nowrap;">
                         {entry['Name']}
                     </div>
-                    <div style="width: 60%; background-color: #f0f2f6; border-radius: 4px; height: 18px;">
+                    <div style="width: 55%; background-color: #f0f2f6; border-radius: 4px; height: 16px;">
                         <div style="width: {rel_width}%; background-color: {entry['Color']}; height: 100%; border-radius: 4px; transition: width 0.6s ease-in-out;">
                         </div>
                     </div>
-                    <div style="width: 25%; padding-left: 10px; font-size: 0.85rem; color: #444;">
-                        (Med: ${entry['Median']:,.2f}, {entry['Insolvency']:.0%} Default)
+                    <div style="width: 30%; padding-left: 12px; font-size: 0.85rem; color: {text_color}; white-space: nowrap;">
+                        {status_text}
                     </div>
                 </div>
                 """
                 st.markdown(race_html, unsafe_allow_html=True)
             
             st.write("---")
+            if show_truth:
+                st.success("🏁 **Leaderboard now sorted by Median Wealth Growth.**")
+            else:
+                st.info("🚀 **Leaderboard sorted by Total Aggregate Wealth (AUM).**")
 
 else:
     st.warning("Please enter the Instructor Password in the sidebar.")

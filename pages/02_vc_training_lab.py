@@ -10,8 +10,17 @@ st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
-    path = os.path.join(os.path.dirname(__file__), name)
-    spec = importlib.util.spec_from_file_location(name, path)
+    # Get the path of the current file (in /pages/)
+    current_dir = Path(__file__).parent
+    # Go up one level to the root
+    root_dir = current_dir.parent
+    # Define the target file path
+    path = root_dir / name
+    
+    if not path.exists():
+        raise FileNotFoundError(f"Could not find {name} at {path}")
+
+    spec = importlib.util.spec_from_file_location(name, str(path))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -20,7 +29,7 @@ try:
     nav = load_mod("02_vc_lab_narrative.py")
     eng = load_mod("02_vc_lab_engine.py")
 except Exception as e:
-    st.error(f"Module Load Error: {e}")
+    st.error(f"❌ Module Load Error: {e}")
     st.stop()
 
 # --- 3. SESSION STATE ---

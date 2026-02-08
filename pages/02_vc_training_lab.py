@@ -107,45 +107,51 @@ else:
         if not st.session_state.history: 
             st.warning("🔒 Complete Stage 2 to unlock capital deployment.")
         else:
+            # 1. Setup context from previous stages
             p_val = st.session_state.audit['p_observed']
             st.markdown(f"**Research Confidence (p):** {p_val:.3f} | **Payback Multiplier (b):** {b}x")
             
-            # The slider for the student to choose their 'f'
+            # 2. Input for Sizing (The 'f' decision)
             f = st.slider("Investment Size (f) per deal", 0.0, 1.0, 0.1, 0.01, 
                          help="What percentage of your current fund do you deploy into every single deal?")
             
+            # 3. Execution - One Trial per Click
             if st.button("🚀 Run 50-Deal Simulation"):
-                # Call the engine to run exactly ONE path
                 path = eng.run_simulation(f, p_val, b)
                 
-                # Visualizing the journey
                 st.write(f"#### Fund Journey (1 Trial)")
                 fig, ax = plt.subplots(figsize=(10, 4))
                 
-                # Color the line based on success or failure
-                color = "#2ecc71" if path[-1] > 100 else "#e74c3c"
-                ax.plot(path, color=color, linewidth=2, label="Fund Value")
-                ax.axhline(100, color="gray", linestyle="--", alpha=0.5, label="Starting Capital")
+                # Visual threshold: Green if ending above start, Red if below
+                line_color = "#2ecc71" if path[-1] > 100 else "#e74c3c"
                 
-                # Using Log Scale to show growth/decay clearly
-                ax.set_yscale('log')
-                ax.set_ylabel("Wealth (Log Scale)")
-                ax.set_xlabel("Deals (Time)")
-                ax.grid(True, which="both", ls="-", alpha=0.1)
+                # LINEAR PLOT (Visceral discovery of swings)
+                ax.plot(path, color=line_color, linewidth=2, label="Fund Value")
+                
+                # THE $100 REFERENCE LINE
+                ax.axhline(100, color="gray", linestyle="--", alpha=0.6, label="Starting Capital ($100)")
+                
+                # Formatting
+                ax.set_ylabel("Wealth ($)")
+                ax.set_xlabel("Number of Deals")
+                ax.set_title(f"Final Value: ${path[-1]:,.2f}")
+                ax.grid(True, axis='y', alpha=0.2)
+                ax.legend()
+                
                 st.pyplot(fig)
                 plt.close(fig)
 
-                # Individual Trial Metrics for Discovery
+                # 4. Metrics for discovery of risk
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Peak Wealth", f"${np.max(path):,.2f}")
-                c2.metric("Trough (Deepest Drawdown)", f"${np.min(path):,.2f}")
+                c2.metric("Trough (Max Pain)", f"${np.min(path):,.2f}")
                 c3.metric("Final Result", f"${path[-1]:,.2f}")
                 
-                # Conditional feedback based on the trial outcome
+                # 5. Pedagogical feedback
                 if path[-1] <= 1.0:
                     st.error("💥 **INSOLVENT:** Your fund hit the floor. In this universe, your sizing was too aggressive for the sequence of outcomes.")
                 elif path[-1] < 100:
-                    st.warning("📉 **UNDERWATER:** You survived, but you finished with less than you started.")
+                    st.warning("📉 **UNDERWATER:** You survived, but you finished with less than your starting capital.")
                 else:
                     st.success("💰 **SUCCESS:** Your deployment strategy resulted in net growth.")
 

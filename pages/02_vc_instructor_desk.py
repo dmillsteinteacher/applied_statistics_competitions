@@ -108,8 +108,8 @@ if pwd == "VC_LEADER":
                         st.session_state.results_data[c['Name']] = []
                     st.session_state.results_data[c['Name']].append(final_wealth)
             
-            st.session_state.sim_total_trials += num_trials
-            st.rerun()
+                    st.session_state.sim_total_trials += num_trials
+                    st.rerun()
 
         if sim_col3.button("Reset Race Data"):
             for name in st.session_state.results_data:

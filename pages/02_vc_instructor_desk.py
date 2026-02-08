@@ -55,14 +55,12 @@ if pwd == "VC_LEADER":
     with st.expander("🛠️ Secret Scenario Configuration", expanded=True):
         col1, col2 = st.columns(2)
         m_sel = col1.selectbox("Set Secret Market", list(nav.MARKET_STORIES.keys()))
-        day_seed_input = col2.text_input("Day Seed (Student Lab ID)", value="LAB123")
-        day_seed = sum(ord(c) for c in day_seed_input)
-        np.random.seed(day_seed)
         
-        m_base = {"Market A: The Boom": 0.9, "Market B: The Squeeze": 0.7, "Market C: Rule Change": 0.8}
-        s_mult = {"Type 1: The Basics": 1.0, "Type 2: Tech Apps": 0.6, "Type 3: Big Science": 0.2}
-        p_matrix = {m: {s: np.clip(p*s_mult[s] + np.random.normal(0,0.02), 0.01, 0.99) 
-                       for s in nav.TYPE_STORY} for m, p in m_base.items()}
+        # Pull Ground Truth directly from your hand-tuned Narrative file
+        p_matrix = nav.P_MATRIX 
+        
+        st.write("### Ground Truth Probabilities for this Session:")
+        st.json(p_matrix[m_sel])
 
     st.header("📢 Current Market Briefing")
     st.info(f"**Field Report:** {nav.MARKET_STORIES[m_sel]}")

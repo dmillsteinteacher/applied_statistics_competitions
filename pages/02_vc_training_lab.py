@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# --- 1. SET PAGE CONFIG ---
+# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
@@ -78,13 +78,22 @@ else:
         
         if st.session_state.audit:
             r = st.session_state.audit
-            st.info(nav.MEMO_TEMPLATE.format(ef=r['exec_fail'], mf=r['mkt_fail'], sector=sec, market=mkt))
-            u_p = st.number_input("Enter the calculated p (Success Rate):", 0.0, 1.0, step=0.01)
+            st.info(nav.MEMO_TEMPLATE.format(
+                n=r['sample_size'], 
+                ef=r['exec_fail_count'], 
+                mf=r['mkt_fail_count'], 
+                sector=sec, 
+                market=mkt
+            ))
+            
+            u_p = st.number_input("Enter your calculated Success Rate (p):", 0.0, 1.0, step=0.001, format="%.3f")
+            
             if st.button("Verify Audit"):
-                if abs(u_p - r['p_observed']) < 0.01:
+                if abs(u_p - r['p_observed']) < 0.005:
                     st.session_state.verified = True
-                    st.success(f"Verified. Observed p = {r['p_observed']:.2f}")
-                else: st.error("Verification failed.")
+                    st.success(f"✅ Verified. Research confirms p = {r['p_observed']:.3f}")
+                else: 
+                    st.error("❌ Verification failed. Check your math: (Total Cases - Failures) / Total Cases.")
 
     with t2:
         st.subheader("Stage 2: Stress Test & Career Volatility")
@@ -92,7 +101,7 @@ else:
             st.warning("🔒 Please verify the Audit in Stage 1.")
         else:
             p_val = st.session_state.audit['p_observed']
-            st.info(f"**Research Goal:** Investigating failure streaks with a **{p_val:.2f}** success probability.")
+            st.info(f"**Research Goal:** Investigating failure streaks with a **{p_val:.3f}** success probability.")
 
             if st.button("Simulate 100-Deal Career"):
                 st.session_state.history.append(eng.simulate_career(p_val))
@@ -110,14 +119,19 @@ else:
         if not st.session_state.history: 
             st.warning("🔒 Complete Stage 2.")
         else:
-            st.markdown(f"**Target p:** {st.session_state.audit['p_observed']:.2f} | **Payback b:** {b}x")
+            p_val = st.session_state.audit['p_observed']
+            st.markdown(f"**Target p:** {p_val:.3f} | **Payback b:** {b}x")
             f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1, 0.01)
             
             if st.button("Deploy Capital"):
-                res = eng.run_simulation(f, st.session_state.audit['p_observed'], b)
+                res = eng.run_simulation(f, p_val, b)
+                
+                # Plotting one random path from the history
                 history_matrix = res['History']
                 random_idx = np.random.randint(0, history_matrix.shape[0])
                 path = history_matrix[random_idx, :]
+                
+                st.write(f"#### Fund Journey (Simulated Universe #{random_idx})")
                 
                 fig, ax = plt.subplots(figsize=(10, 4))
                 p_color = "#e74c3c" if path[-1] <= 1.0 else "#2ecc71"
@@ -130,5 +144,7 @@ else:
                 plt.close(fig)
 
                 st.divider()
-                st.write("#### Strategy Statistics (Batch of 100)")
-                c1, c
+                st.write("#### Strategy Statistics (Batch of 100 Simulations)")
+                c1, c2 = st.columns(2)
+                c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
+                c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")

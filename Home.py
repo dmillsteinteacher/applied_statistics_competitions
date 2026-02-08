@@ -48,26 +48,3 @@ st.caption("Applied Statistics | Interactive Competition Suite | Built with Stre
 # 
 # 
 # --- END OF FILE ---
-
-import os
-
-# --- SYSTEM DIAGNOSTIC (Add to bottom of Home.py) ---
-st.markdown("---")
-st.subheader("🔍 System Diagnostic: Sidebar Discovery")
-pages_folder = "pages"
-
-if os.path.exists(pages_folder):
-    # Get all files in the pages directory
-    files_in_pages = os.listdir(pages_folder)
-    st.write(f"Streamlit is scanning the following files in `/{pages_folder}`:")
-    st.json(files_in_pages)
-    
-    # Specifically check if the instructor files exist
-    target_files = ["02_vc_instructor_desk.py", "02_vc_instructor_engine.py"]
-    for target in target_files:
-        if target in files_in_pages:
-            st.success(f"✅ Found: `{target}`")
-        else:
-            st.error(f"❌ Missing: `{target}`")
-else:
-    st.error("❌ The `pages/` directory was not found in the root folder.")

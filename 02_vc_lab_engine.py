@@ -37,16 +37,22 @@ def simulate_career(p_val, n_deals=100):
 def run_simulation(f, p, b, n_steps=50, n_sims=100):
     """Core wealth simulation for Stage 3 sizing."""
     history = np.zeros((n_sims, n_steps + 1))
-    history[:, 0] = 100.0
+    history[:, 0] = 100.0  # Starting capital
     for i in range(n_sims):
         for t in range(n_steps):
-            if history[i, t] <= 1.0:
+            if history[i, t] <= 1.0: # Insolvency check
                 history[i, t+1] = 0.0
                 continue
+            
             win = np.random.random() < p
-            payoff = b if win else 0.0
             bet = history[i, t] * f
-            history[i, t+1] = (history[i, t] - bet) + (bet * payoff)
+            
+            if win:
+                # You keep the bet AND gain (bet * b)
+                history[i, t+1] = history[i, t] + (bet * b)
+            else:
+                # You lose the entire bet
+                history[i, t+1] = history[i, t] - bet
     
     final_vals = history[:, -1]
     return {

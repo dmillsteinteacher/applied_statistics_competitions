@@ -34,31 +34,23 @@ def simulate_career(p_val, n_deals=100):
             current_streak = 0
     return {"Wins": int(np.sum(raw)), "Max_Streak": max_streak, "raw": raw.tolist()}
 
-def run_simulation(f, p, b, n_steps=50, n_sims=100):
-    """Core wealth simulation for Stage 3 sizing."""
-    history = np.zeros((n_sims, n_steps + 1))
-    history[:, 0] = 100.0  # Starting capital
-    for i in range(n_sims):
-        for t in range(n_steps):
-            if history[i, t] <= 1.0: # Insolvency check
-                history[i, t+1] = 0.0
-                continue
+def run_simulation(f, p, b, n_steps=50):
+    """Runs a SINGLE wealth simulation path."""
+    path = [100.0]
+    for t in range(n_steps):
+        current_w = path[-1]
+        if current_w <= 1.0:
+            path.append(0.0)
+            continue
+        
+        win = np.random.random() < p
+        bet = current_w * f
+        
+        if win:
+            path.append(current_w + (bet * b))
+        else:
+            path.append(current_w - bet)
             
-            win = np.random.random() < p
-            bet = history[i, t] * f
-            
-            if win:
-                # You keep the bet AND gain (bet * b)
-                history[i, t+1] = history[i, t] + (bet * b)
-            else:
-                # You lose the entire bet
-                history[i, t+1] = history[i, t] - bet
-    
-    final_vals = history[:, -1]
-    return {
-        "Median": np.median(final_vals),
-        "Insolvency Rate": np.sum(final_vals <= 1.0) / n_sims,
-        "History": history
-    }
+    return np.array(path)
 
 # --- END OF ENGINE FILE ---

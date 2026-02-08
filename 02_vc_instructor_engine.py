@@ -1,32 +1,25 @@
 import numpy as np
 
-def run_competition_sim(f_strategy, p_true, b_multiple, trials=10000, rounds=50):
-    # Initialize all trials with a starting balance of $1,000
-    balances = np.full(trials, 1000.0)
+def run_competition_sim(f, p, b, n_steps=50):
+    """
+    Executes a single career path and returns ONLY the final wealth.
+    This version is optimized for the 'Horse Race' batch processor.
+    """
+    current_w = 100.0  # Starting Capital
     
-    for _ in range(rounds):
-        # Generate outcomes for all trials at once
-        wins = np.random.random(trials) < p_true
+    for _ in range(n_steps):
+        if current_w <= 1.0:
+            return 0.0 # Early exit for insolvency
         
-        # Calculate investment sizes based on strategy f
-        bets = balances * f_strategy
+        win = np.random.random() < p
+        bet = current_w * f
         
-        # Update balances: (Balance + Profit) if Win, (Balance - Bet) if Loss
-        balances = np.where(wins, balances + (bets * b_multiple), balances - bets)
-        
-        # Apply insolvency threshold: if a fund drops below $1, it's effectively $0
-        balances[balances < 1.0] = 0.0
-        
-    return {
-        "Mean": np.mean(balances),
-        "Std Dev": np.std(balances),
-        "Min": np.min(balances),
-        "Q1": np.percentile(balances, 25),
-        "Median": np.median(balances),
-        "Q3": np.percentile(balances, 75),
-        "Max": np.max(balances),
-        "Insolvency Rate": (balances == 0).mean()
-    }
+        if win:
+            current_w += (bet * b)
+        else:
+            current_w -= bet
+            
+    return float(current_w)
 
 # --- SAFETY PADDING ---
 # Ensure no truncation occurs

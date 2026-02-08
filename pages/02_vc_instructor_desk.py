@@ -122,38 +122,48 @@ if pwd == "VC_LEADER":
             leaderboard_data = []
             for name, results in st.session_state.results_data.items():
                 arr = np.array(results)
+                
+                # 1. Absolute Wins: How many times did they end > $100?
+                abs_wins = int(np.sum(arr > 100.0))
+                
+                # 2. Stats for the caption
                 med = np.median(arr)
                 mx = np.max(arr)
-                ins = np.sum(arr <= 1.0) / len(arr) if len(arr) > 0 else 0
+                win_pct = (abs_wins / len(arr)) * 100 if len(arr) > 0 else 0
                 
                 leaderboard_data.append({
-                    "Name": name, "Median": med, "Max": mx, 
-                    "Insolvency": ins, "Color": st.session_state.colors[name]
+                    "Name": name, 
+                    "AbsWins": abs_wins,
+                    "WinPct": win_pct,
+                    "Median": med, 
+                    "Max": mx, 
+                    "Color": st.session_state.colors[name]
                 })
             
-            # Sort by Median Wealth
-            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['Median'], reverse=True)
-            top_median = leaderboard_data[0]['Median']
+            # SORT BY ABSOLUTE WINS
+            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['AbsWins'], reverse=True)
+            max_wins_possible = st.session_state.sim_total_trials
 
             for rank, entry in enumerate(leaderboard_data):
-                # Calculate relative bar width
-                width = (entry['Median'] / top_median * 100) if top_median > 0 else 0
+                # Bar width relative to total trials run so far
+                width = (entry['AbsWins'] / max_wins_possible * 100) if max_wins_possible > 0 else 0
                 
                 st.markdown(f"#### {rank+1}. {entry['Name']}")
                 
-                # HTML Progress Bar with smooth transition
                 bar_html = f"""
                     <div style="width: 100%; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 5px;">
                         <div style="width: {width}%; background-color: {entry['Color']}; 
                                     padding: 10px; color: white; border-radius: 10px; 
                                     text-align: right; font-weight: bold; transition: width 0.8s ease-in-out;
                                     min-width: fit-content;">
-                            ${entry['Median']:,.2f}
+                            {entry['AbsWins']} Successful Universes
                         </div>
                     </div>
                 """
                 st.markdown(bar_html, unsafe_allow_html=True)
-                st.caption(f"🚀 **Max Potential:** ${entry['Max']:,.2f} | 💀 **Insolvency Rate:** {entry['Insolvency']:.1%}")
+                
+                # Caption showing the "Serious" stats
+                st.caption(f"📈 **Win Rate:** {entry['WinPct']:.1f}% | 🎯 **Current Median Wealth:** ${entry['Median']:,.2f} | 🚀 **Max:** ${entry['Max']:,.2f}")
                 st.write("---")
 
 else:

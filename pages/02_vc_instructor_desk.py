@@ -123,47 +123,47 @@ if pwd == "VC_LEADER":
             for name, results in st.session_state.results_data.items():
                 arr = np.array(results)
                 
-                # 1. Absolute Wins: How many times did they end > $100?
-                abs_wins = int(np.sum(arr > 100.0))
+                # 1. THE "BAIT": Total Aggregate Wealth
+                total_wealth = np.sum(arr)
                 
-                # 2. Stats for the caption
+                # 2. THE "TRUTH": Median and Insolvency
                 med = np.median(arr)
+                ins = np.sum(arr <= 1.0) / len(arr)
                 mx = np.max(arr)
-                win_pct = (abs_wins / len(arr)) * 100 if len(arr) > 0 else 0
                 
                 leaderboard_data.append({
                     "Name": name, 
-                    "AbsWins": abs_wins,
-                    "WinPct": win_pct,
+                    "TotalWealth": total_wealth,
                     "Median": med, 
-                    "Max": mx, 
+                    "Insolvency": ins,
+                    "Max": mx,
                     "Color": st.session_state.colors[name]
                 })
             
-            # SORT BY ABSOLUTE WINS
-            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['AbsWins'], reverse=True)
-            max_wins_possible = st.session_state.sim_total_trials
+            # SORT BY TOTAL WEALTH (The exciting, volatile metric)
+            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
+            top_aum = leaderboard_data[0]['TotalWealth']
 
             for rank, entry in enumerate(leaderboard_data):
-                # Bar width relative to total trials run so far
-                width = (entry['AbsWins'] / max_wins_possible * 100) if max_wins_possible > 0 else 0
+                width = (entry['TotalWealth'] / top_aum * 100) if top_aum > 0 else 0
                 
                 st.markdown(f"#### {rank+1}. {entry['Name']}")
                 
+                # Bar shows Total AUM
                 bar_html = f"""
                     <div style="width: 100%; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 5px;">
                         <div style="width: {width}%; background-color: {entry['Color']}; 
                                     padding: 10px; color: white; border-radius: 10px; 
                                     text-align: right; font-weight: bold; transition: width 0.8s ease-in-out;
                                     min-width: fit-content;">
-                            {entry['AbsWins']} Successful Universes
+                            Total AUM: ${entry['TotalWealth']:,.0f}
                         </div>
                     </div>
                 """
                 st.markdown(bar_html, unsafe_allow_html=True)
                 
-                # Caption showing the "Serious" stats
-                st.caption(f"📈 **Win Rate:** {entry['WinPct']:.1f}% | 🎯 **Current Median Wealth:** ${entry['Median']:,.2f} | 🚀 **Max:** ${entry['Max']:,.2f}")
+                # The "Reality Check" caption
+                st.caption(f"🎯 **Median Wealth:** ${entry['Median']:,.2f} | 💀 **Insolvency:** {entry['Insolvency']:.1%} | 🚀 **Biggest Hit:** ${entry['Max']:,.2f}")
                 st.write("---")
 
 else:

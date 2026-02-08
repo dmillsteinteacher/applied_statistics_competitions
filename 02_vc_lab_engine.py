@@ -2,16 +2,26 @@
 import numpy as np
 
 def run_audit(mkt, sec, p_true):
-    total_failure = 1.0 - p_true
-    ef_val = total_failure * np.random.uniform(0.3, 0.5)
-    mf_val = total_failure - ef_val
+    """Generates raw counts of failure types for discovery."""
+    sample_size = 200
+    expected_p = p_true + np.random.normal(0, 0.01)
+    success_count = int(sample_size * np.clip(expected_p, 0.05, 0.95))
+    total_failures = sample_size - success_count
+    
+    exec_fail_count = int(total_failures * np.random.uniform(0.4, 0.6))
+    mkt_fail_count = total_failures - exec_fail_count
+    
+    p_observed = success_count / sample_size
+    
     return {
-        "exec_fail": f"{ef_val:.1%}",
-        "mkt_fail": f"{mf_val:.1%}",
-        "p_observed": round(p_true, 2)
+        "sample_size": sample_size,
+        "exec_fail_count": exec_fail_count,
+        "mkt_fail_count": mkt_fail_count,
+        "p_observed": round(p_observed, 3)
     }
 
 def simulate_career(p_val, n_deals=100):
+    """Simulates a deal sequence for Stage 2 visualization."""
     raw = np.random.random(n_deals) < p_val
     max_streak, current_streak = 0, 0
     for outcome in raw:
@@ -23,6 +33,7 @@ def simulate_career(p_val, n_deals=100):
     return {"Wins": int(np.sum(raw)), "Max_Streak": max_streak, "raw": raw.tolist()}
 
 def run_simulation(f, p, b, n_steps=50, n_sims=100):
+    """Core wealth simulation for Stage 3 sizing."""
     history = np.zeros((n_sims, n_steps + 1))
     history[:, 0] = 100.0
     for i in range(n_sims):
@@ -34,8 +45,10 @@ def run_simulation(f, p, b, n_steps=50, n_sims=100):
             payoff = b if win else 0.0
             bet = history[i, t] * f
             history[i, t+1] = (history[i, t] - bet) + (bet * payoff)
+    
+    final_vals = history[:, -1]
     return {
-        "Median": np.median(history[:, -1]),
-        "Insolvency Rate": np.sum(history[:, -1] <= 1.0) / n_sims,
+        "Median": np.median(final_vals),
+        "Insolvency Rate": np.sum(final_vals <= 1.0) / n_sims,
         "History": history
     }

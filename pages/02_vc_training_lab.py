@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
+# --- 1. SET PAGE CONFIG ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
@@ -79,9 +79,9 @@ else:
         if st.session_state.audit:
             r = st.session_state.audit
             st.info(nav.MEMO_TEMPLATE.format(
-                n=r['sample_size'], 
-                ef=r['exec_fail_count'], 
-                mf=r['mkt_fail_count'], 
+                n=r['n'], 
+                ef=r['ef'], 
+                mf=r['mf'], 
                 sector=sec, 
                 market=mkt
             ))
@@ -93,7 +93,7 @@ else:
                     st.session_state.verified = True
                     st.success(f"✅ Verified. Research confirms p = {r['p_observed']:.3f}")
                 else: 
-                    st.error("❌ Verification failed. Check your math: (Total Cases - Failures) / Total Cases.")
+                    st.error("❌ Verification failed. Math: (Total Cases - Failures) / Total Cases.")
 
     with t2:
         st.subheader("Stage 2: Stress Test & Career Volatility")
@@ -125,8 +125,6 @@ else:
             
             if st.button("Deploy Capital"):
                 res = eng.run_simulation(f, p_val, b)
-                
-                # Plotting one random path from the history
                 history_matrix = res['History']
                 random_idx = np.random.randint(0, history_matrix.shape[0])
                 path = history_matrix[random_idx, :]

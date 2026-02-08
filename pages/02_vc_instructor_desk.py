@@ -100,11 +100,15 @@ if pwd == "VC_LEADER":
                     p_true = p_matrix[m_sel][c['Sector']]
                     b_val = nav.B_VALS[c['Sector']]
                     
-                    # Get final wealth from a 50-deal career
-                    path = inst_eng.run_competition_sim(c['f'], p_true, b_val)
-                    st.session_state.results_data[c['Name']].append(path[-1])
+                    # 1. This now returns a single number (float)
+                    final_wealth = inst_eng.run_competition_sim(c['f'], p_true, b_val)
+                    
+                    # 2. Append that number directly (REMOVED [-1])
+                    if c['Name'] not in st.session_state.results_data:
+                        st.session_state.results_data[c['Name']] = []
+                    st.session_state.results_data[c['Name']].append(final_wealth)
             
-            st.session_state.sim_total_trials += batch_to_add
+            st.session_state.sim_total_trials += num_trials
             st.rerun()
 
         if sim_col3.button("Reset Race Data"):

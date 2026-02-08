@@ -95,26 +95,24 @@ if pwd == "VC_LEADER":
         batch_to_add = sim_col1.number_input("Trials per Batch:", 10, 1000, 100, step=10)
         
         if sim_col2.button("🏁 Run Next Batch", type="primary", use_container_width=True):
-            for _ in range(int(batch_to_add)):
+            # 1. Capture the batch size as a clean integer
+            num_to_run = int(batch_to_add) 
+            
+            # 2. Outer Loop: Number of trials
+            for _ in range(num_to_run):
+                # 3. Inner Loop: Each contestant
                 for c in st.session_state.contestants:
                     p_true = p_matrix[m_sel][c['Sector']]
                     b_val = nav.B_VALS[c['Sector']]
                     
-                    # 1. This now returns a single number (float)
                     final_wealth = inst_eng.run_competition_sim(c['f'], p_true, b_val)
                     
-                    # 2. Append that number directly (REMOVED [-1])
                     if c['Name'] not in st.session_state.results_data:
                         st.session_state.results_data[c['Name']] = []
                     st.session_state.results_data[c['Name']].append(final_wealth)
             
-                    st.session_state.sim_total_trials += num_trials
-                    st.rerun()
-
-        if sim_col3.button("Reset Race Data"):
-            for name in st.session_state.results_data:
-                st.session_state.results_data[name] = []
-            st.session_state.sim_total_trials = 0
+            # 4. FIXED: Update total and rerun ONLY ONCE after all loops finish
+            st.session_state.sim_total_trials += num_to_run
             st.rerun()
 
         # --- 7. LEADERBOARD DISPLAY ---

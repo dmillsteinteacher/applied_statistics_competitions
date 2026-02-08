@@ -21,14 +21,12 @@ if st.button("🔄 Start New Scenario (Clear All Data)"):
 
 st.title("VC Training Lab")
 
-# Initialize Tabs
 tab1, tab2, tab3 = st.tabs(["Phase 1: Audit", "Phase 2: Verification", "Phase 3: Strategy"])
 
-# --- TAB 1: AUDIT ---
+# --- TAB 1: AUDIT (INTERACTIVE) ---
 with tab1:
     st.header("Step 1: The Sector Audit")
-    
-    # We use index=0 or session_state to keep selections stable
+    # Interactive selection that triggers the memo generation
     sector = st.selectbox("Choose Investment Sector", list(nav.B_VALS.keys()))
     market = st.selectbox("Choose Market Environment", list(nav.P_MATRIX.keys()))
     
@@ -37,48 +35,54 @@ with tab1:
         st.session_state.market = market
         st.session_state.current_p = nav.P_MATRIX[market][sector]
         st.session_state.memo = nav.generate_memo(sector, market)
-        st.session_state.p_verified = False # Reset verification on new audit
+        # Explicitly clear verification if they change the audit
+        st.session_state.p_verified = False 
 
-    # PERSISTENCE: If the memo exists in state, show it
     if "memo" in st.session_state:
         st.info("### Internal Memo")
         st.write(st.session_state.memo)
 
-# --- TAB 2: VERIFICATION ---
+# --- TAB 2: VERIFICATION (INTERACTIVE) ---
 with tab2:
     st.header("Step 2: Probability Verification")
-    if "sector" not in st.session_state:
+    if "current_p" not in st.session_state:
         st.warning("Please complete the Audit in Phase 1 first.")
     else:
         st.write(f"Testing for: **{st.session_state.sector}** in **{st.session_state.market}**")
         
-        # Grid of results (using a fixed seed based on session to keep grid stable)
+        # Interactive Grid: The student can refresh this to "see" the probability
+        if st.button("Generate New Data Sample"):
+            st.session_state.grid_seed = np.random.randint(0, 10000)
+        
+        seed = st.session_state.get('grid_seed', 42)
+        rng = np.random.default_rng(seed)
+        
         cols = st.columns(10)
-        for i in range(100):
+        results = rng.random(100) < st.session_state.current_p
+        for i, success in enumerate(results):
             with cols[i % 10]:
-                # We use a stable random check so the grid doesn't flicker on every click
-                if np.random.default_rng(i + 42).random() < st.session_state.current_p:
-                    st.markdown("🟩")
-                else:
-                    st.markdown("🟥")
+                st.markdown("🟩" if success else "🟥")
         
         st.divider()
-        guess_p = st.number_input("Verify success probability (p)", 0.0, 1.0, 0.5, 0.01)
+        # Interactive Verification: Requires the student to act
+        guess_p = st.number_input("Based on the data, verify the success probability (p)", 0.0, 1.0, 0.5, 0.01)
         
         if st.button("Verify $p$"):
             if abs(guess_p - st.session_state.current_p) < 0.001:
                 st.session_state.p_verified = True
-                st.rerun()
+                st.success("Probability Verified. Phase 3 Unlocked.")
             else:
-                st.error("Verification failed.")
+                st.error("Verification failed. The p-value does not match the market data.")
 
-# --- TAB 3: STRATEGY ---
+# --- TAB 3: STRATEGY (LATEST LOGIC) ---
 with tab3:
     st.header("Step 3: Determine Allocation")
-    if "sector" not in st.session_state or not st.session_state.get('p_verified', False):
-        st.warning("Locked: Verify probability in Phase 1 and 2.")
+    if not st.session_state.get('p_verified', False):
+        st.warning("Locked: Verify probability in Phase 2.")
     else:
-        b_val = nav.B_VALS[st.session_state.sector]
+        # Pull data from the interactive session state
+        s_choice = st.session_state.sector
+        b_val = nav.B_VALS[s_choice]
         target_p = st.session_state.current_p
         
         st.markdown(f"**Environment:** {st.session_state.market} | **Target p:** {target_p:.2f} | **Payback b:** {b_val}x")
@@ -88,7 +92,7 @@ with tab3:
         if st.button("Run Simulation"):
             res = engine.run_simulation(f_guess, target_p, b_val, n_steps=50)
             
-            # Trajectory Plot
+            # Trajectory Plot (Single Sample)
             history = res['History']
             random_idx = np.random.randint(0, history.shape[0])
             path = history[random_idx, :]
@@ -98,12 +102,18 @@ with tab3:
             ax.plot(path, color=p_color, linewidth=2)
             ax.fill_between(range(len(path)), path, color=p_color, alpha=0.1)
             ax.set_yscale('log')
-            ax.set_ylabel("Wealth (Log)")
+            ax.set_ylabel("Wealth (Log Scale)")
+            ax.set_xlabel("Reinvestment Cycles")
+            ax.grid(True, which="both", ls="-", alpha=0.1)
             st.pyplot(fig)
             plt.close(fig)
 
             st.divider()
-            st.subheader("Strategy Statistics")
+            # Batch Stats Below
+            st.subheader("Strategy Statistics (Batch of 100)")
             c1, c2 = st.columns(2)
             c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
             c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+
+            with st.expander("Understanding the Insolvency Rate"):
+                st.write(f"The **Insolvency Rate of {res['Insolvency Rate']:.1%}** means that in {res['Insolvency Rate']*100:.0f} out of 100 universes, this strategy hit $0.")

@@ -94,35 +94,47 @@ with tab2:
                 for i, result in enumerate(run['trials']):
                     cols[i % 20].write("🟩" if result == 1 else "🟥")
 
-# --- TAB 3: REINVESTMENT STRATEGY (Updated with b-value visibility) ---
+# --- TAB 3: REINVESTMENT STRATEGY ---
 with tab3:
     st.header("Step 3: Determine Allocation")
     if not st.session_state.p_verified:
         st.warning("Locked: Verify probability in Phase 1.")
     else:
-        # Get the b_val for display and logic
         b_val = nav.B_VALS[sector_choice]
         
-        st.subheader(f"Strategic Profile")
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Environment", market_choice)
-        col_b.metric("Success Prob (p)", f"{st.session_state.current_p:.2f}")
-        col_c.metric("Payback Ratio (b)", f"{b_val}x")
-        
+        # FIXED: Replacing st.metric with a cleaner, smaller layout
+        st.markdown(f"**Current Profile:** {market_choice} | **p**: {st.session_state.current_p:.2f} | **b**: {b_val}x")
         st.write(f"Testing strategy for **{sector_choice}**")
+        
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
         if st.button("Run Simulation"):
-            res = engine.run_simulation(f_guess, st.session_state.current_p, b_val)
+            # We need the full path data for the plot, so we'll call the engine
+            # Note: Ensure your engine returns 'history' as well (see engine update below)
+            res = engine.run_simulation(f_guess, st.session_state.current_p, b_val, n_steps=50)
             
-            st.metric("Median Wealth Growth", f"${res['Median']:,.0f}")
-            st.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+            # 1. Numerical Summary
+            col1, col2 = st.columns(2)
+            col1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
+            col2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+
+            # 2. Line Plot of all 100 paths
+            st.subheader("Simulated Fund Trajectories")
+            fig, ax = plt.subplots(figsize=(10, 4))
             
-            if res['Insolvency Rate'] > 0.1:
-                st.error(f"High risk of ruin! With b={b_val}, f={f_guess} is too aggressive.")
-            else:
-                st.success(f"Strategy Validated. You are betting on a {b_val}x payout.")
-            if res['Insolvency Rate'] > 0.1:
-                st.error("Risk of Ruin is high for this environment. Consider a more conservative f.")
-            else:
-                st.success(f"Strategy Validated for {market_choice}. Submit f={f_guess} for the contest.")
+            # The engine should return a 2D array: [simulation, step]
+            history = res['History'] 
+            steps = np.arange(history.shape[1])
+            
+            for i in range(history.shape[0]):
+                alpha = 0.3 if history[i, -1] > 0 else 0.1 # Fade out failed funds
+                color = "green" if history[i, -1] > 1000 else "red"
+                ax.plot(steps, history[i], color=color, alpha=alpha, linewidth=1)
+            
+            ax.set_yscale('log') # Log scale helps visualize exponential VC growth
+            ax.set_xlabel("Reinvestment Cycles")
+            ax.set_ylabel("Fund Wealth (Log Scale)")
+            ax.axhline(1000, color="white", linestyle="--", alpha=0.5) # Starting line
+            st.pyplot(fig)
+            
+            # Strategy Validated message removed as requested.

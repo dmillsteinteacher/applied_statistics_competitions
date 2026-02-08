@@ -1,40 +1,25 @@
 import numpy as np
 
-def run_simulation(f, p, b, initial_wealth=1000, n_sims=100, n_steps=20):
-    """
-    Simulates VC fund growth using the Kelly-style reinvestment logic.
-    f: The fraction of the current fund reinvested in each round.
-    p: The probability of a successful exit.
-    b: The payback ratio (net profit multiple, e.g., 8.0 means you keep your 1.0 AND get 8.0 more).
-    """
-    # Track the final wealth of every simulated universe
-    final_wealths = []
+def run_simulation(f, p, b, initial_wealth=1000, n_sims=100, n_steps=50):
+    # Matrix to store wealth at every step: rows = sims, cols = time steps
+    history = np.zeros((n_sims, n_steps + 1))
+    history[:, 0] = initial_wealth
 
-    for _ in range(n_sims):
+    for s in range(n_sims):
         wealth = initial_wealth
-        for _ in range(n_steps):
-            if wealth < 1.0: # Fund is effectively insolvent
+        for t in range(1, n_steps + 1):
+            if wealth < 1.0:
                 wealth = 0
-                break
-            
-            # Amount committed to the round
-            bet_size = f * wealth
-            
-            # Outcome logic
-            if np.random.random() < p:
-                # Success: Gain the payout (b * bet_size)
-                wealth += (bet_size * b)
             else:
-                # Failure: Lose the commitment
-                wealth -= bet_size
-        
-        final_wealths.append(wealth)
+                bet_size = f * wealth
+                if np.random.random() < p:
+                    wealth += (bet_size * b)
+                else:
+                    wealth -= bet_size
+            history[s, t] = wealth
 
-    final_wealths = np.array(final_wealths)
-    
-    # Return metrics for the UI to display
     return {
-        "Median": float(np.median(final_wealths)),
-        "Insolvency Rate": float(np.mean(final_wealths <= 1.0)),
-        "Mean": float(np.mean(final_wealths))
+        "Median": float(np.median(history[:, -1])),
+        "Insolvency Rate": float(np.mean(history[:, -1] <= 1.0)),
+        "History": history  # Crucial: returns the full 2D array
     }

@@ -6,7 +6,6 @@ import os
 
 # --- 1. MODULE LOADING ---
 def load_mod(name):
-    # Standard pathing to find files in the Root from the /pages folder
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), name)
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
@@ -44,20 +43,15 @@ with tab1:
         market_choice = st.selectbox("Select Market Environment", list(nav.MARKET_STORIES.keys()))
         
         if st.button("Generate Audit Memo"):
-            # Pull base probability from the 9-matrix
             base_p = nav.P_MATRIX[market_choice][sector_choice]
-            # Add Gaussian noise for the specific sample
             noisy_p = np.clip(np.random.normal(base_p, 0.02), 0.1, 0.9)
             
-            # Generate 50 trials
             successes = int(np.random.binomial(50, noisy_p))
             failures = 50 - successes
             
-            # Record the "Truth" for this specific memo
             st.session_state.current_p = successes / 50.0
-            st.session_state.p_verified = False # Reset gate
+            st.session_state.p_verified = False 
             
-            # Format Memo
             ef = int(failures * 0.6)
             mf = failures - ef
             st.session_state.memo_text = nav.MEMO_TEMPLATE.format(
@@ -75,7 +69,7 @@ with tab1:
                 else:
                     st.error("❌ Probability incorrect. Review the memo and calculate: Successes / 50.")
 
-# --- TAB 2: PROBABILITY STUDY (INTUITION BUILDING) ---
+# --- TAB 2: PROBABILITY STUDY ---
 with tab2:
     st.header("Step 2: Visualize Variance")
     if not st.session_state.p_verified:
@@ -83,14 +77,10 @@ with tab2:
     else:
         st.write(f"Studying performance for **p = {st.session_state.current_p}**")
         if st.button("Simulate 100 Trials"):
-            # Generate trials based on the verified p
             trials = np.random.choice([1, 0], size=100, p=[st.session_state.current_p, 1-st.session_state.current_p])
-            
-            # Calculate max consecutive failures
             fail_runs = "".join(trials.astype(str)).split('1')
             max_fail = len(max(fail_runs, key=len))
             
-            # Store in history (insert at start so newest is on top)
             st.session_state.trial_history.insert(0, {
                 "id": len(st.session_state.trial_history) + 1,
                 "trials": trials,
@@ -98,7 +88,6 @@ with tab2:
                 "max_fail": max_fail
             })
             
-        # Display history in expanders
         for run in st.session_state.trial_history:
             with st.expander(f"Trial Set #{run['id']} | Successes: {run['wins']} | Max Consecutive Failures: {run['max_fail']}"):
                 cols = st.columns(20)
@@ -109,9 +98,20 @@ with tab2:
 with tab3:
     st.header("Step 3: Determine Allocation")
     if not st.session_state.p_verified:
-        st.warning("Please verify the probability in Phase 1 to unlock strategy testing.")
+        st.warning("Locked: Verify probability in Phase 1.")
     else:
-        st.write(f"Targeting sector: **{sector_choice}** (p={st.session_state.current_p})")
+        st.write(f"Testing for **{sector_choice}** (p={st.session_state.current_p})")
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
         if st.button("Run Simulation"):
+            b_val = nav.B_VALS[sector_choice]
+            # --- Corrected logic inside the button block ---
+            res = engine.run_simulation(f_guess, st.session_state.current_p, b_val)
+            
+            st.metric("Median Wealth Growth", f"${res['Median']:,.0f}")
+            st.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+            
+            if res['Insolvency Rate'] > 0.1:
+                st.error("Risk of Ruin is high.")
+            else:
+                st.success(f"Strategy Validated: f={f_guess} for {sector_choice}.")

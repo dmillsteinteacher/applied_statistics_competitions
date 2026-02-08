@@ -115,56 +115,52 @@ if pwd == "VC_LEADER":
             st.session_state.sim_total_trials += num_to_run
             st.rerun()
 
-        # --- 7. LEADERBOARD DISPLAY ---
+        # --- 7. HIGH-DENSITY LEADERBOARD DISPLAY ---
         st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
         
         if st.session_state.sim_total_trials > 0:
             leaderboard_data = []
             for name, results in st.session_state.results_data.items():
                 arr = np.array(results)
-                
-                # 1. THE "BAIT": Total Aggregate Wealth
                 total_wealth = np.sum(arr)
-                
-                # 2. THE "TRUTH": Median and Insolvency
                 med = np.median(arr)
                 ins = np.sum(arr <= 1.0) / len(arr)
-                mx = np.max(arr)
-                
                 leaderboard_data.append({
                     "Name": name, 
                     "TotalWealth": total_wealth,
                     "Median": med, 
                     "Insolvency": ins,
-                    "Max": mx,
-                    "Color": st.session_state.colors[name]
+                    "Color": st.session_state.colors.get(name, "#1C83E1")
                 })
             
-            # SORT BY TOTAL WEALTH (The exciting, volatile metric)
+            # Sort by Total Wealth (The Race)
             leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
-            top_aum = leaderboard_data[0]['TotalWealth']
+            max_aum = leaderboard_data[0]['TotalWealth'] if leaderboard_data[0]['TotalWealth'] > 0 else 1
 
-            for rank, entry in enumerate(leaderboard_data):
-                width = (entry['TotalWealth'] / top_aum * 100) if top_aum > 0 else 0
+            st.write("---")
+            # Container for the high-density race
+            for entry in leaderboard_data:
+                rel_width = (entry['TotalWealth'] / max_aum * 100)
                 
-                st.markdown(f"#### {rank+1}. {entry['Name']}")
-                
-                # Bar shows Total AUM
-                bar_html = f"""
-                    <div style="width: 100%; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 5px;">
-                        <div style="width: {width}%; background-color: {entry['Color']}; 
-                                    padding: 10px; color: white; border-radius: 10px; 
-                                    text-align: right; font-weight: bold; transition: width 0.8s ease-in-out;
-                                    min-width: fit-content;">
-                            Total AUM: ${entry['TotalWealth']:,.0f}
+                # Using custom HTML for a tight, single-line layout
+                # Name (15%) | Bar (60%) | Stats (25%)
+                race_html = f"""
+                <div style="display: flex; align-items: center; margin-bottom: 4px; font-family: sans-serif;">
+                    <div style="width: 15%; text-align: right; padding-right: 10px; font-weight: bold; font-size: 0.9rem; overflow: hidden; white-space: nowrap;">
+                        {entry['Name']}
+                    </div>
+                    <div style="width: 60%; background-color: #f0f2f6; border-radius: 4px; height: 18px;">
+                        <div style="width: {rel_width}%; background-color: {entry['Color']}; height: 100%; border-radius: 4px; transition: width 0.6s ease-in-out;">
                         </div>
                     </div>
+                    <div style="width: 25%; padding-left: 10px; font-size: 0.85rem; color: #444;">
+                        (Med: ${entry['Median']:,.2f}, {entry['Insolvency']:.0%} Default)
+                    </div>
+                </div>
                 """
-                st.markdown(bar_html, unsafe_allow_html=True)
-                
-                # The "Reality Check" caption
-                st.caption(f"🎯 **Median Wealth:** ${entry['Median']:,.2f} | 💀 **Insolvency:** {entry['Insolvency']:.1%} | 🚀 **Biggest Hit:** ${entry['Max']:,.2f}")
-                st.write("---")
+                st.markdown(race_html, unsafe_allow_html=True)
+            
+            st.write("---")
 
 else:
     st.warning("Please enter the Instructor Password in the sidebar.")

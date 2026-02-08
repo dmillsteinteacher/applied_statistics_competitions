@@ -4,16 +4,14 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path  # This is the line that was missing
+from pathlib import Path
 
-# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
+# --- 1. SET PAGE CONFIG ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
-    # Get the path of the current file's directory (the /pages/ folder)
     current_dir = Path(__file__).parent
-    # Go up one level to the root directory where narrative and engine live
     root_dir = current_dir.parent
     path = root_dir / name
     
@@ -31,9 +29,8 @@ try:
 except Exception as e:
     st.error(f"❌ Module Load Error: {e}")
     st.stop()
-    
+
 # --- 3. SESSION STATE ---
-# Removed lab_id and p_matrix logic to eliminate seeding
 for k in ["cur_scen", "audit", "verified", "history"]:
     if k not in st.session_state:
         st.session_state[k] = [] if k == "history" else None
@@ -48,7 +45,6 @@ with st.sidebar:
         st.rerun()
     
     st.divider()
-    # Market and Sector selection now drive p and b directly from narrative
     m_sel = st.selectbox("Market Environment", list(nav.MARKET_STORIES.keys()))
     t_sel = st.selectbox("Sector Type", list(nav.TYPE_STORY.keys()))
     
@@ -64,7 +60,6 @@ if not st.session_state.cur_scen:
     st.info("👋 Welcome. Select a scenario in the sidebar to begin.")
 else:
     mkt, sec = st.session_state.cur_scen
-    # Probability is now fetched directly from the narrative matrix (No seeding)
     p_true = nav.P_MATRIX[mkt][sec]
     b = nav.B_VALS[sec]
     
@@ -78,7 +73,6 @@ else:
     with t1:
         st.subheader("Probability Discovery")
         if st.button("Request Audit Report"):
-            # run_audit now generates a fresh observation every time (no seed)
             st.session_state.audit = eng.run_audit(mkt, sec, p_true)
             st.session_state.verified = False
         
@@ -101,7 +95,6 @@ else:
             st.info(f"**Research Goal:** Investigating failure streaks with a **{p_val:.2f}** success probability.")
 
             if st.button("Simulate 100-Deal Career"):
-                # Fresh simulation every click
                 st.session_state.history.append(eng.simulate_career(p_val))
             
             if st.session_state.history:
@@ -122,8 +115,6 @@ else:
             
             if st.button("Deploy Capital"):
                 res = eng.run_simulation(f, st.session_state.audit['p_observed'], b)
-                
-                # Single Path Visualization
                 history_matrix = res['History']
                 random_idx = np.random.randint(0, history_matrix.shape[0])
                 path = history_matrix[random_idx, :]
@@ -140,6 +131,4 @@ else:
 
                 st.divider()
                 st.write("#### Strategy Statistics (Batch of 100)")
-                c1, c2 = st.columns(2)
-                c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
-                c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+                c1, c

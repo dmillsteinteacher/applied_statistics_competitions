@@ -1,3 +1,5 @@
+# 02_vc_lab_narrative.py
+
 MARKET_STORIES = {
     "Market A: The Boom": "Capital is plentiful and exit multiples are at record highs.",
     "Market B: The Squeeze": "Liquidity is tightening. Only the most efficient reach exit.",
@@ -36,3 +38,4 @@ Our research team reviewed **{n}** past deal attempts in similar conditions. Her
 **TASK:** Based on these findings, calculate the **Probability of Success (p)** for the remaining cases in this set. 
 *(Hint: Successes = Total cases minus all failures)*
 """
+# --- END OF NARRATIVE FILE ---

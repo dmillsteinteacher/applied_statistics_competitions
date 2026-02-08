@@ -4,7 +4,7 @@ import numpy as np
 import importlib.util
 import os
 
-# --- 1. MODULE LOADING ---
+# --- 1. MODULE LOADING (STRICT PATH UPDATE) ---
 def load_mod(name):
     # Get the directory where THIS file is (/pages)
     current_dir = os.path.dirname(__file__)
@@ -32,56 +32,43 @@ if nav is None or engine is None:
     st.stop()
 
 # --- 2. PAGE CONFIG ---
-st.set_page_config(page_title="Venture Capital Lab", layout="wide")
+st.set_page_config(page_title="VC Training Lab", layout="wide")
 st.title("💼 Venture Capital Training Lab")
 
-# --- 3. SESSION STATE ---
-if 'research_data' not in st.session_state:
-    st.session_state.research_data = {}
-
-# --- 4. SIDEBAR: RESEARCH CONTROLS ---
-with st.sidebar:
-    st.header("Research Desk")
-    selected_sector = st.selectbox("Select Sector to Research", list(nav.TYPE_STORY.keys()))
-    
-    if st.button("Run 100-Trial Research"):
-        # Logic to pull P and B from narrative
-        p_base = 0.7  # Simplified base for student side
-        b_val = nav.B_VALS[selected_sector]
-        
-        # Use a fixed f=0.1 just for research purposes
-        res = engine.run_simulation(0.1, p_base, b_val, trials=100)
-        st.session_state.research_data[selected_sector] = res
-        st.success(f"Research complete for {selected_sector}")
-
-# --- 5. MAIN UI ---
+# --- 3. AUDIT & PROBABILITY STUDY ---
 st.markdown(nav.LAB_INTRODUCTION)
 
+st.header("Phase 1: Internal Audit")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Sector Briefing")
-    st.info(nav.TYPE_STORY[selected_sector])
+    sector = st.selectbox("Select Sector", list(nav.TYPE_STORY.keys()))
+    market = st.selectbox("Select Market Environment", list(nav.MARKET_STORIES.keys()))
+    if st.button("Generate Audit Memo"):
+        # Audit logic: 50 trials
+        successes = np.random.binomial(50, 0.7) 
+        failures = 50 - successes
+        ef = int(failures * 0.6)
+        mf = failures - ef
+        st.session_state.memo = nav.MEMO_TEMPLATE.format(
+            sector=sector, market=market, ef=ef, mf=mf
+        )
 
 with col2:
-    st.subheader("Research Findings")
-    if selected_sector in st.session_state.research_data:
-        data = st.session_state.research_data[selected_sector]
-        st.write(f"**Observed Survival Rate:** {1 - data['Insolvency Rate']:.1%}")
-        st.write(f"**Median Fund Growth:** {data['Median']/1000:.2f}x")
-    else:
-        st.write("No research data yet. Use the sidebar to investigate.")
+    if 'memo' in st.session_state:
+        st.info(st.session_state.memo)
 
-st.divider()
-st.subheader("Final Strategy Submission")
-st.write("Based on your research, what fraction of your fund will you commit to this sector?")
-final_f = st.slider("Select Strategy (f)", 0.0, 1.0, 0.1, 0.01)
+# --- 4. STRATEGY TESTING ---
+st.header("Phase 2: Strategy Testing")
+f_guess = st.slider("Select your f", 0.0, 1.0, 0.1, 0.01)
 
-if st.button("Lock In Strategy"):
-    st.success(f"Strategy Locked: f={final_f} for {selected_sector}. Provide this to your instructor.")
+if st.button("Run Simulation"):
+    b = nav.B_VALS[sector]
+    # Standard training p = 0.7
+    results = engine.run_simulation(f_guess, 0.7, b)
+    
+    st.write(f"**Median Result:** ${results['Median']:,.0f}")
+    st.write(f"**Insolvency Rate:** {results['Insolvency Rate']:.1%}")
 
 # --- SAFETY PADDING ---
-# 1
-# 2
-# 3
 # --- END OF FILE ---

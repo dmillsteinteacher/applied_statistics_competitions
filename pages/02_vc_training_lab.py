@@ -1,17 +1,19 @@
 import streamlit as st
+from pathlib import Path
 import importlib.util
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path
 
-# --- 1. SET PAGE CONFIG (WITH PROTECTION) ---
-try:
-    st.set_page_config(page_title="VC Training Lab", layout="wide")
-except st.errors.StreamlitAPIException:
-    # This catches the error if the config was already set
-    pass
+# --- 1. SET PAGE CONFIG (MUST BE ABSOLUTE FIRST) ---
+# We wrap this to prevent the "called once" error
+if "config_set" not in st.session_state:
+    try:
+        st.set_page_config(page_title="VC Training Lab", layout="wide")
+        st.session_state.config_set = True
+    except:
+        pass
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
@@ -20,18 +22,20 @@ def load_mod(name):
     path = root_dir / name
     
     if not path.exists():
-        raise FileNotFoundError(f"Missing file: {name} at {path}")
+        return None
 
     spec = importlib.util.spec_from_file_location(name, str(path))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
-try:
-    nav = load_mod("02_vc_lab_narrative.py")
-    eng = load_mod("02_vc_lab_engine.py")
-except Exception as e:
-    st.error(f"❌ Module Load Error: {e}")
+# Perform loading
+nav = load_mod("02_vc_lab_narrative.py")
+eng = load_mod("02_vc_lab_engine.py")
+
+# Check for success
+if nav is None or eng is None:
+    st.error("❌ Critical Error: Could not load Narrative or Engine files from root.")
     st.stop()
 
 # --- 3. SESSION STATE ---
@@ -44,6 +48,7 @@ with st.sidebar:
     st.title("👨‍💼 VC Research Desk")
     
     if st.button("🔄 Start New Scenario (Reset All)"):
+        # Clear everything including config flag for a hard reset
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
@@ -149,4 +154,4 @@ else:
                 st.write("#### Strategy Statistics (Batch of 100 Simulations)")
                 c1, c2 = st.columns(2)
                 c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
-                c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+                c2.metric("Insolvency Rate", f"{res['Insolvency Rate

@@ -9,15 +9,11 @@ st.set_page_config(page_title="VC Instructor Desk", layout="wide")
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
-    # Get the directory where THIS file is (/pages)
     current_dir = os.path.dirname(__file__)
-    # Go up one level to the Root directory
     root_dir = os.path.dirname(current_dir)
-    # Target the file in the Root
     path = os.path.join(root_dir, name)
     
     if not os.path.exists(path):
-        # Fallback for local testing/different structures
         path = os.path.join(current_dir, name)
 
     spec = importlib.util.spec_from_file_location(name, path)
@@ -26,27 +22,22 @@ def load_mod(name):
     spec.loader.exec_module(mod)
     return mod
 
-# These now look in the root folder for the moved files
 nav = load_mod("02_vc_lab_narrative.py")
 inst_eng = load_mod("02_vc_instructor_engine.py")
 
 if nav is None or inst_eng is None:
-    st.error("Missing critical helper files in Root. Check file locations.")
+    st.error("Missing critical helper files (Narrative or Instructor Engine) in Root.")
     st.stop()
 
-# --- 3. HELPER: CURRENCY FORMATTING (K/M notation) ---
-def format_currency(value):
-    if value == 0: return "$0"
-    abs_val = abs(value)
-    if abs_val >= 1_000_000:
-        return f"${value / 1_000_000:.1f}M"
-    elif abs_val >= 1_000:
-        return f"${value / 1_000:.1f}K"
-    else:
-        return f"${int(value)}"
+# --- 3. SESSION STATE INITIALIZATION ---
+if "contestants" not in st.session_state:
+    st.session_state.contestants = []
+    st.session_state.results_data = {}  # Stores raw final wealth values: {Name: [results]}
+    st.session_state.sim_total_trials = 0
+    st.session_state.colors = {}       # Mapping of student names to colors
 
 # --- 4. UI SETUP ---
-st.title("🏆 VC Competition: Strategy Leaderboard")
+st.title("🏆 VC Competition: The Horse Race")
 
 pwd = st.sidebar.text_input("Instructor Password", type="password")
 
@@ -56,79 +47,115 @@ if pwd == "VC_LEADER":
         col1, col2 = st.columns(2)
         m_sel = col1.selectbox("Set Secret Market", list(nav.MARKET_STORIES.keys()))
         
-        # Pull Ground Truth directly from your hand-tuned Narrative file
+        # GROUND TRUTH SYNC: Pulling directly from your hand-tuned Narrative file
         p_matrix = nav.P_MATRIX 
         
-        st.write("### Ground Truth Probabilities for this Session:")
+        st.write("### Current Ground Truth Probabilities:")
         st.json(p_matrix[m_sel])
 
     st.header("📢 Current Market Briefing")
     st.info(f"**Field Report:** {nav.MARKET_STORIES[m_sel]}")
 
     # STUDENT ENTRY FORM
-    if "contestants" not in st.session_state:
-        st.session_state.contestants = []
-
     st.subheader("Contestant Registration")
     with st.form("entry_form", clear_on_submit=True):
         f_col1, f_col2, f_col3 = st.columns([2, 2, 1])
         s_name = f_col1.text_input("Student Name")
         s_sec = f_col2.selectbox("Chosen Sector", list(nav.TYPE_STORY.keys()))
         s_f = f_col3.number_input("Strategy (f)", 0.0, 1.0, 0.1, step=0.01)
+        
         if st.form_submit_button("Add Strategy"):
             if s_name:
+                # Add to contestant list
                 st.session_state.contestants.append({"Name": s_name, "Sector": s_sec, "f": s_f})
+                # Initialize their color and data slot
+                palette = ["#FF4B4B", "#1C83E1", "#00C0F2", "#FFD166", "#06D6A0", "#118AB2", "#EE82EE", "#FFA500"]
+                if s_name not in st.session_state.colors:
+                    st.session_state.colors[s_name] = palette[len(st.session_state.contestants) % len(palette)]
+                    st.session_state.results_data[s_name] = []
                 st.rerun()
 
-    # --- 5. THE LIVE ROSTER ---
+    # --- 5. THE PENDING ROSTER ---
     if st.session_state.contestants:
-        st.write("### Pending Roster")
+        st.write("### Registered Contestants")
         roster_df = pd.DataFrame(st.session_state.contestants)
-        st.table(roster_df) 
+        st.table(roster_df)
         
-        col_run, col_clear = st.columns([1, 4])
-        run_sim = col_run.button("🚀 RUN SIMULATION")
-        if col_clear.button("Clear All Contestants"):
+        if st.button("Clear All Contestants"):
             st.session_state.contestants = []
+            st.session_state.results_data = {}
+            st.session_state.sim_total_trials = 0
             st.rerun()
 
-        # --- 6. THE COMPETITION RESULTS ---
-        if run_sim:
-            results = []
-            for c in st.session_state.contestants:
-                p_true = p_matrix[m_sel][c['Sector']]
-                b_val = nav.B_VALS[c['Sector']]
+        # --- 6. THE TRUTH ENGINE (HORSE RACE) ---
+        st.divider()
+        st.header("🏁 The Truth Engine: Live Performance")
+        
+        sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
+        batch_to_add = sim_col1.number_input("Trials per Batch:", 10, 1000, 100, step=10)
+        
+        if sim_col2.button("🏁 Run Next Batch", type="primary", use_container_width=True):
+            for _ in range(int(batch_to_add)):
+                for c in st.session_state.contestants:
+                    p_true = p_matrix[m_sel][c['Sector']]
+                    b_val = nav.B_VALS[c['Sector']]
+                    
+                    # Get final wealth from a 50-deal career
+                    path = inst_eng.run_competition_sim(c['f'], p_true, b_val)
+                    st.session_state.results_data[c['Name']].append(path[-1])
+            
+            st.session_state.sim_total_trials += batch_to_add
+            st.rerun()
+
+        if sim_col3.button("Reset Race Data"):
+            for name in st.session_state.results_data:
+                st.session_state.results_data[name] = []
+            st.session_state.sim_total_trials = 0
+            st.rerun()
+
+        # --- 7. LEADERBOARD DISPLAY ---
+        st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
+        
+        if st.session_state.sim_total_trials > 0:
+            leaderboard_data = []
+            for name, results in st.session_state.results_data.items():
+                arr = np.array(results)
+                med = np.median(arr)
+                mx = np.max(arr)
+                ins = np.sum(arr <= 1.0) / len(arr) if len(arr) > 0 else 0
                 
-                stats = inst_eng.run_competition_sim(c['f'], p_true, b_val)
+                leaderboard_data.append({
+                    "Name": name, "Median": med, "Max": mx, 
+                    "Insolvency": ins, "Color": st.session_state.colors[name]
+                })
+            
+            # Sort by Median Wealth
+            leaderboard_data = sorted(leaderboard_data, key=lambda x: x['Median'], reverse=True)
+            top_median = leaderboard_data[0]['Median']
+
+            for rank, entry in enumerate(leaderboard_data):
+                # Calculate relative bar width
+                width = (entry['Median'] / top_median * 100) if top_median > 0 else 0
                 
-                stats["IQR"] = stats["Q3"] - stats["Q1"]
-                stats.update({"Student": c['Name'], "Sector": c['Sector'], "f": c['f']})
-                results.append(stats)
-            
-            df = pd.DataFrame(results)
-            
-            cols = ["Student", "Sector", "f", "Median", "IQR", "Std Dev", "Insolvency Rate", "Min", "Q1", "Q3", "Max", "Mean"]
-            df_display = df[cols].sort_values("Median", ascending=False)
-            
-            st.header("📊 Final Competition Results")
-            st.balloons()
-            
-            dollar_cols = ["Median", "IQR", "Std Dev", "Min", "Q1", "Q3", "Max", "Mean"]
-            formatted_df = df_display.copy()
-            for col in dollar_cols:
-                formatted_df[col] = formatted_df[col].apply(format_currency)
-            
-            formatted_df["Insolvency Rate"] = formatted_df["Insolvency Rate"].apply(lambda x: f"{x:.1%}")
-            
-            st.dataframe(formatted_df, use_container_width=True)
-            
-            st.success("Analysis: High Std Dev relative to IQR suggests significant 'Outlier' success or heavy tail risk.")
+                st.markdown(f"#### {rank+1}. {entry['Name']}")
+                
+                # HTML Progress Bar with smooth transition
+                bar_html = f"""
+                    <div style="width: 100%; background-color: #f0f2f6; border-radius: 10px; margin-bottom: 5px;">
+                        <div style="width: {width}%; background-color: {entry['Color']}; 
+                                    padding: 10px; color: white; border-radius: 10px; 
+                                    text-align: right; font-weight: bold; transition: width 0.8s ease-in-out;
+                                    min-width: fit-content;">
+                            ${entry['Median']:,.2f}
+                        </div>
+                    </div>
+                """
+                st.markdown(bar_html, unsafe_allow_html=True)
+                st.caption(f"🚀 **Max Potential:** ${entry['Max']:,.2f} | 💀 **Insolvency Rate:** {entry['Insolvency']:.1%}")
+                st.write("---")
 
 else:
     st.warning("Please enter the Instructor Password in the sidebar.")
 
-# --- SAFETY PADDING ---
-# 1
-# 2
-# 3
-# --- END OF FILE ---
+# --- PADDING ---
+# ............................................................

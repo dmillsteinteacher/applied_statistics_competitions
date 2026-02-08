@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path  # This is the line that was missing
 
 # --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")

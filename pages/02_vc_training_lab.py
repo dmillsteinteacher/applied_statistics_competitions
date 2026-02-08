@@ -103,37 +103,51 @@ else:
                 st.write(" ".join(["🟩" if x else "🟥" for x in lt['raw']]))
 
     with t3:
-        st.subheader("Capital Deployment Simulation")
+        st.subheader("Stage 3: Sizing & Capital Deployment")
         if not st.session_state.history: 
-            st.warning("🔒 Complete Stage 2.")
+            st.warning("🔒 Complete Stage 2 to unlock capital deployment.")
         else:
             p_val = st.session_state.audit['p_observed']
-            st.markdown(f"**Target p:** {p_val:.3f} | **Payback b:** {b}x")
-            f = st.slider("Investment Size (f) as % of Remaining Fund", 0.0, 1.0, 0.1, 0.01)
+            st.markdown(f"**Research Confidence (p):** {p_val:.3f} | **Payback Multiplier (b):** {b}x")
             
-            if st.button("Deploy Capital"):
-                res = eng.run_simulation(f, p_val, b)
-                history_matrix = res['History']
-                random_idx = np.random.randint(0, history_matrix.shape[0])
-                path = history_matrix[random_idx, :]
+            # The slider for the student to choose their 'f'
+            f = st.slider("Investment Size (f) per deal", 0.0, 1.0, 0.1, 0.01, 
+                         help="What percentage of your current fund do you deploy into every single deal?")
+            
+            if st.button("🚀 Run 50-Deal Simulation"):
+                # Call the engine to run exactly ONE path
+                path = eng.run_simulation(f, p_val, b)
                 
-                st.write(f"#### Fund Journey (Simulated Universe #{random_idx})")
-                
+                # Visualizing the journey
+                st.write(f"#### Fund Journey (1 Trial)")
                 fig, ax = plt.subplots(figsize=(10, 4))
-                p_color = "#e74c3c" if path[-1] <= 1.0 else "#2ecc71"
-                ax.plot(path, color=p_color, linewidth=2)
-                ax.fill_between(range(len(path)), path, color=p_color, alpha=0.1)
+                
+                # Color the line based on success or failure
+                color = "#2ecc71" if path[-1] > 100 else "#e74c3c"
+                ax.plot(path, color=color, linewidth=2, label="Fund Value")
+                ax.axhline(100, color="gray", linestyle="--", alpha=0.5, label="Starting Capital")
+                
+                # Using Log Scale to show growth/decay clearly
                 ax.set_yscale('log')
                 ax.set_ylabel("Wealth (Log Scale)")
+                ax.set_xlabel("Deals (Time)")
                 ax.grid(True, which="both", ls="-", alpha=0.1)
                 st.pyplot(fig)
                 plt.close(fig)
 
-                st.divider()
-                st.write("#### Strategy Statistics (Batch of 100 Simulations)")
-                c1, c2 = st.columns(2)
-                c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
-                c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+                # Individual Trial Metrics for Discovery
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Peak Wealth", f"${np.max(path):,.2f}")
+                c2.metric("Trough (Deepest Drawdown)", f"${np.min(path):,.2f}")
+                c3.metric("Final Result", f"${path[-1]:,.2f}")
+                
+                # Conditional feedback based on the trial outcome
+                if path[-1] <= 1.0:
+                    st.error("💥 **INSOLVENT:** Your fund hit the floor. In this universe, your sizing was too aggressive for the sequence of outcomes.")
+                elif path[-1] < 100:
+                    st.warning("📉 **UNDERWATER:** You survived, but you finished with less than you started.")
+                else:
+                    st.success("💰 **SUCCESS:** Your deployment strategy resulted in net growth.")
 
 # --- FINAL PADDING FOR PEDAGOGICAL INTEGRITY ---
 # ............................................................................

@@ -1,15 +1,15 @@
 # 02_vc_lab_narrative.py
 
 MARKET_STORIES = {
-    "Market A: The Boom": "Capital is plentiful and exit multiples are high.",
-    "Market B: The Squeeze": "Liquidity is tightening; efficiency is key.",
-    "Market C: Rule Change": "New regulations have shifted the landscape."
+    "Market A: The Boom": "Capital is plentiful and exit multiples are at record highs.",
+    "Market B: The Squeeze": "Liquidity is tightening. Only the most efficient reach exit.",
+    "Market C: Rule Change": "New regulations have created niche uncertainty."
 }
 
 TYPE_STORY = {
     "Type 1: The Basics": "Proven business models with steady growth.",
-    "Type 2: Tech Apps": "High-growth software ventures.",
-    "Type 3: Big Science": "High-cap-ex, high-reward ventures."
+    "Type 2: Tech Apps": "High-growth software ventures. Scalable but sensitive.",
+    "Type 3: Big Science": "High-cap-ex, long timelines with binary outcomes."
 }
 
 P_MATRIX = {
@@ -18,7 +18,6 @@ P_MATRIX = {
     "Market C: Rule Change": {"Type 1: The Basics": 0.50, "Type 2: Tech Apps": 0.35, "Type 3: Big Science": 0.15}
 }
 
-# RESTORED REALISTIC B-VALUES
 B_VALS = {
     "Type 1: The Basics": 0.5,
     "Type 2: Tech Apps": 2.0,
@@ -26,11 +25,19 @@ B_VALS = {
 }
 
 MEMO_TEMPLATE = """
-### 🛡️ INTERNAL AUDIT REPORT
-**Target Sector:** {sector} | **Market:** {market}
+### 🛡️ CONFIDENTIAL STRATEGIC AUDIT
+**Subject:** Risk Factor Analysis for {sector} ({market})
 
-* **Execution Failure Rate:** {ef}
-* **Market Friction Rate:** {mf}
+To determine the success probability ($p$), please account for these identified friction points:
 
-Verify the observed success rate (p) to proceed.
+---
+#### 🔍 CRITICAL FRICTION POINTS
+* **Executive / Operational Failure:** {ef}
+    * *Mismanagement or hiring friction.*
+* **Macro / Market Friction:** {mf}
+    * *Competitive crowding or regulatory headwinds.*
+
+---
+**INSTRUCTIONS:**
+The aggregate success rate is the inverse of total friction. Verify the resulting $p$ below.
 """

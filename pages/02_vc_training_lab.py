@@ -94,26 +94,34 @@ with tab2:
                 for i, result in enumerate(run['trials']):
                     cols[i % 20].write("🟩" if result == 1 else "🟥")
 
-# --- TAB 3: REINVESTMENT STRATEGY ---
+# --- TAB 3: REINVESTMENT STRATEGY (Updated with b-value visibility) ---
 with tab3:
     st.header("Step 3: Determine Allocation")
     if not st.session_state.p_verified:
         st.warning("Locked: Verify probability in Phase 1.")
     else:
-        # UPDATED: Now includes the Market Environment in the header message
-        st.subheader(f"Strategic Profile")
-        st.write(f"Testing for **{sector_choice}** within **{market_choice}**")
-        st.info(f"Target Success Probability: **p = {st.session_state.current_p}**")
+        # Get the b_val for display and logic
+        b_val = nav.B_VALS[sector_choice]
         
+        st.subheader(f"Strategic Profile")
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Environment", market_choice)
+        col_b.metric("Success Prob (p)", f"{st.session_state.current_p:.2f}")
+        col_c.metric("Payback Ratio (b)", f"{b_val}x")
+        
+        st.write(f"Testing strategy for **{sector_choice}**")
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
         if st.button("Run Simulation"):
-            b_val = nav.B_VALS[sector_choice]
             res = engine.run_simulation(f_guess, st.session_state.current_p, b_val)
             
             st.metric("Median Wealth Growth", f"${res['Median']:,.0f}")
             st.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
             
+            if res['Insolvency Rate'] > 0.1:
+                st.error(f"High risk of ruin! With b={b_val}, f={f_guess} is too aggressive.")
+            else:
+                st.success(f"Strategy Validated. You are betting on a {b_val}x payout.")
             if res['Insolvency Rate'] > 0.1:
                 st.error("Risk of Ruin is high for this environment. Consider a more conservative f.")
             else:

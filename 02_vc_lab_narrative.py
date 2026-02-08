@@ -1,5 +1,3 @@
-# 02_vc_lab_narrative.py
-
 MARKET_STORIES = {
     "Market A: The Boom": "Capital is plentiful and exit multiples are at record highs.",
     "Market B: The Squeeze": "Liquidity is tightening. Only the most efficient reach exit.",
@@ -32,9 +30,7 @@ MEMO_TEMPLATE = """
 Our research team reviewed **{n}** past deal attempts in similar conditions. Here are the findings:
 
 * **Executive/Operational Failures:** {ef} cases
-    * (Startups that failed due to internal team or product issues)
 * **Market/Macro Failures:** {mf} cases
-    * (Startups that failed due to timing or competitive shifts)
 
 ---
 **TASK:** Based on these findings, calculate the **Probability of Success (p)** for the remaining cases in this set. 

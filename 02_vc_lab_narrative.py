@@ -4,7 +4,7 @@
 LAB_INTRODUCTION = """
 ### Welcome to the Venture Capital Lab
 In this module, you are acting as a Fund Manager. Your task is to determine the optimal 
-**Kelly Criterion ($f$)** for your investments. 
+reinvestment strategy for your investments. 
 
 1. **Research:** Use the sidebar to simulate 100 trials of a specific sector.
 2. **Observe:** Pay attention to the "Insolvency Rate" vs. the "Growth."

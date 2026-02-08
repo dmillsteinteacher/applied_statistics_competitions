@@ -100,18 +100,21 @@ with tab3:
     if not st.session_state.p_verified:
         st.warning("Locked: Verify probability in Phase 1.")
     else:
-        st.write(f"Testing for **{sector_choice}** (p={st.session_state.current_p})")
+        # UPDATED: Now includes the Market Environment in the header message
+        st.subheader(f"Strategic Profile")
+        st.write(f"Testing for **{sector_choice}** within **{market_choice}**")
+        st.info(f"Target Success Probability: **p = {st.session_state.current_p}**")
+        
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
         if st.button("Run Simulation"):
             b_val = nav.B_VALS[sector_choice]
-            # --- Corrected logic inside the button block ---
             res = engine.run_simulation(f_guess, st.session_state.current_p, b_val)
             
             st.metric("Median Wealth Growth", f"${res['Median']:,.0f}")
             st.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
             
             if res['Insolvency Rate'] > 0.1:
-                st.error("Risk of Ruin is high.")
+                st.error("Risk of Ruin is high for this environment. Consider a more conservative f.")
             else:
-                st.success(f"Strategy Validated: f={f_guess} for {sector_choice}.")
+                st.success(f"Strategy Validated for {market_choice}. Submit f={f_guess} for the contest.")

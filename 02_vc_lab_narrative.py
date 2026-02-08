@@ -13,9 +13,9 @@ TYPE_STORY = {
 }
 
 P_MATRIX = {
-    "Market A: The Boom": {"Type 1: The Basics": 0.65, "Type 2: Tech Apps": 0.45, "Type 3: Big Science": 0.25},
-    "Market B: The Squeeze": {"Type 1: The Basics": 0.40, "Type 2: Tech Apps": 0.25, "Type 3: Big Science": 0.10},
-    "Market C: Rule Change": {"Type 1: The Basics": 0.50, "Type 2: Tech Apps": 0.35, "Type 3: Big Science": 0.15}
+    "Market A: The Boom": {"Type 1: The Basics": 0.85, "Type 2: Tech Apps": 0.60, "Type 3: Big Science": 0.35},
+    "Market B: The Squeeze": {"Type 1: The Basics": 0.70, "Type 2: Tech Apps": 0.40, "Type 3: Big Science": 0.15},
+    "Market C: Rule Change": {"Type 1: The Basics": 0.75, "Type 2: Tech Apps": 0.50, "Type 3: Big Science": 0.25}
 }
 
 B_VALS = {

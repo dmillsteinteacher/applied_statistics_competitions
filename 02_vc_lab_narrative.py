@@ -25,19 +25,18 @@ B_VALS = {
 }
 
 MEMO_TEMPLATE = """
-### 🛡️ CONFIDENTIAL STRATEGIC AUDIT
-**Subject:** Risk Factor Analysis for {sector} ({market})
+### 🛡️ INTERNAL AUDIT: RAW DATA RETRIEVAL
+**Project:** {sector} Historical Performance  
+**Environment:** {market}
 
-To determine the success probability ($p$), please account for these identified friction points:
+Our research team reviewed **{n}** past deal attempts in similar conditions. Here are the findings:
+
+* **Executive/Operational Failures:** {ef} cases
+    * (Startups that failed due to internal team or product issues)
+* **Market/Macro Failures:** {mf} cases
+    * (Startups that failed due to timing or competitive shifts)
 
 ---
-#### 🔍 CRITICAL FRICTION POINTS
-* **Executive / Operational Failure:** {ef}
-    * *Mismanagement or hiring friction.*
-* **Macro / Market Friction:** {mf}
-    * *Competitive crowding or regulatory headwinds.*
-
----
-**INSTRUCTIONS:**
-The aggregate success rate is the inverse of total friction. Verify the resulting $p$ below.
+**TASK:** Based on these findings, calculate the **Probability of Success (p)** for the remaining cases in this set. 
+*(Hint: Successes = Total cases minus all failures)*
 """

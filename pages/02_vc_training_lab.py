@@ -6,8 +6,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# --- 1. SET PAGE CONFIG ---
-st.set_page_config(page_title="VC Training Lab", layout="wide")
+# --- 1. SET PAGE CONFIG (WITH PROTECTION) ---
+try:
+    st.set_page_config(page_title="VC Training Lab", layout="wide")
+except st.errors.StreamlitAPIException:
+    # This catches the error if the config was already set
+    pass
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):

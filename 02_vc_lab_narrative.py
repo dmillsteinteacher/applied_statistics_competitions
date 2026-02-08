@@ -1,58 +1,53 @@
 # 02_vc_lab_narrative.py
 
-# Master Probability Matrix for Environment/Sector Combinations
+# 1. Success probabilities (p) mapped to Market and Sector
 P_MATRIX = {
-    "Market A: The Boom": {"Type 1: The Basics": 0.86, "Type 2: Tech Apps": 0.78, "Type 3: Big Science": 0.64},
-    "Market B: The Squeeze": {"Type 1: The Basics": 0.72, "Type 2: Tech Apps": 0.58, "Type 3: Big Science": 0.42},
-    "Market C: Rule Change": {"Type 1: The Basics": 0.82, "Type 2: Tech Apps": 0.68, "Type 3: Big Science": 0.74}
+    "Market A: The Boom": {
+        "Type 1: The Basics": 0.65,
+        "Type 2: Deep Tech": 0.45,
+        "Type 3: Moonshots": 0.25
+    },
+    "Market B: The Squeeze": {
+        "Type 1: The Basics": 0.40,
+        "Type 2: Deep Tech": 0.25,
+        "Type 3: Moonshots": 0.10
+    },
+    "Market C: Stagnation": {
+        "Type 1: The Basics": 0.50,
+        "Type 2: Deep Tech": 0.35,
+        "Type 3: Moonshots": 0.15
+    }
 }
 
-B_VALS = {"Type 1: The Basics": 0.5, "Type 2: Tech Apps": 2.0, "Type 3: Big Science": 8.0}
-
-MARKET_STORIES = {
-    "Market A: The Boom": "Consumer spending is at an all-time high and credit is nearly free.",
-    "Market B: The Squeeze": "Inflation is rampant and store shelves are empty.",
-    "Market C: Rule Change": "The regulatory landscape has shifted. New mandates have created tailwinds."
+# 2. Payback multiples (b) per sector
+B_VALS = {
+    "Type 1: The Basics": 3.0,
+    "Type 2: Deep Tech": 8.0,
+    "Type 3: Moonshots": 25.0
 }
 
-TYPE_STORY = {
-    "Type 1: The Basics": "Focuses on infrastructure and power. Steady cash flows.",
-    "Type 2: Tech Apps": "Focuses on scalable platforms. Zero marginal cost upsides.",
-    "Type 3: Big Science": "Focuses on frontier tech like rockets. Massive R&D risk."
-}
+# 3. The function that generates the flavor text for Tab 1
+def generate_memo(sector, market):
+    """
+    Creates the internal audit text based on the chosen sector and market.
+    """
+    # Safety lookup
+    p_est = P_MATRIX.get(market, {}).get(sector, 0.5)
+    b_val = B_VALS.get(sector, 1.0)
+    
+    memo_text = f"""
+    ### STRATEGIC AUDIT: {sector.upper()}
+    **Market Condition:** {market}
+    **Subject:** Internal Probability Assessment
+    
+    Our proprietary analysis of {market} suggests a baseline success rate 
+    of approximately **{p_est:.0%}** for {sector} investments. 
+    
+    Historical data for this sector indicates a successful exit typically 
+    yields a **{b_val}x** return on invested capital. 
+    
+    *Confidentiality Notice: This data is for internal simulation use only.*
+    """
+    return memo_text
 
-LAB_INTRODUCTION = """
-### Welcome to the Venture Capital Lab
-In this module, you are acting as a Fund Manager. Your task is to determine the optimal 
-**allocation strategy ($f$)** for your investments. 
-
-1. **Research:** Use the sidebar to simulate 100 trials of a specific sector. This represents historical data from similar market conditions.
-2. **Observe:** Pay attention to the "Insolvency Rate" (how often you lose everything) vs. the "Growth" (how much you actually made).
-3. **Strategize:** Find the balance that maximizes your long-term wealth. Be careful—aggressive growth often comes with a hidden risk of total ruin.
-"""
-
-MEMO_TEMPLATE = """
-**To:** Managing Partner | **From:** Risk Assessment Division 
-**Subject:** Audit of {sector} Ventures ({market})
-
-Our team has concluded its investigation into 50 recent ventures within the **{sector}** sector operating under **{market}** conditions.
-
-**Findings:**
-* **Execution Failures:** **{ef} companies** suffered from fatal internal mismanagement.
-* **Market Casualties:** **{mf} ventures** were liquidated due to competitive shifts.
-* **Successful Exits:** The remaining companies hit their target exit milestones.
-
-Establish the success probability ($p$) for our upcoming rounds based on this specific sample.
-"""
-
-# --- SAFETY PADDING ---
-# 1
-# 2
-# 3
-# 4
-# 5
-# 6
-# 7
-# 8
-# 9
-# 10
+# --- EOF PADDING ---

@@ -1,39 +1,40 @@
-# 02_vc_lab_engine.py
 import numpy as np
 
-def run_audit(lab_id, market, sector, p_true):
-    np.random.seed(sum(ord(c) for c in lab_id + market + sector))
-    outcomes = [np.random.random() < p_true for _ in range(50)]
-    wins = sum(outcomes)
+def run_simulation(f, p, b, initial_wealth=1000, n_sims=100, n_steps=20):
+    """
+    Simulates VC fund growth using the Kelly-style reinvestment logic.
+    f: The fraction of the current fund reinvested in each round.
+    p: The probability of a successful exit.
+    b: The payback ratio (net profit multiple, e.g., 8.0 means you keep your 1.0 AND get 8.0 more).
+    """
+    # Track the final wealth of every simulated universe
+    final_wealths = []
+
+    for _ in range(n_sims):
+        wealth = initial_wealth
+        for _ in range(n_steps):
+            if wealth < 1.0: # Fund is effectively insolvent
+                wealth = 0
+                break
+            
+            # Amount committed to the round
+            bet_size = f * wealth
+            
+            # Outcome logic
+            if np.random.random() < p:
+                # Success: Gain the payout (b * bet_size)
+                wealth += (bet_size * b)
+            else:
+                # Failure: Lose the commitment
+                wealth -= bet_size
+        
+        final_wealths.append(wealth)
+
+    final_wealths = np.array(final_wealths)
+    
+    # Return metrics for the UI to display
     return {
-        "wins": wins,
-        "exec_fail": int((50 - wins) * 0.4),
-        "mkt_fail": (50 - wins) - int((50 - wins) * 0.4),
-        "p_observed": wins / 50
+        "Median": float(np.median(final_wealths)),
+        "Insolvency Rate": float(np.mean(final_wealths <= 1.0)),
+        "Mean": float(np.mean(final_wealths))
     }
-
-def simulate_career(p_observed):
-    results = [np.random.random() < p_observed for _ in range(100)]
-    streak, max_streak = 0, 0
-    for win in results:
-        streak = streak + 1 if not win else 0
-        max_streak = max(max_streak, streak)
-    return {"Wins": sum(results), "Max_Streak": max_streak, "raw": results}
-
-def run_fund_simulation(f_size, p_observed, payout_b):
-    balance = 1000.0
-    history = [balance]
-    is_insolvent = False
-    for _ in range(50):
-        if balance < 1.0:
-            is_insolvent, balance = True, 0
-        else:
-            bet = balance * f_size
-            balance += (bet * payout_b) if np.random.random() < p_observed else -bet
-        history.append(balance)
-    return balance, history, is_insolvent
-
-# --- PADDING ---
-# 
-# 
-# --- END OF FILE ---

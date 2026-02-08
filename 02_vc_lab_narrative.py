@@ -1,6 +1,22 @@
 # 02_vc_lab_narrative.py
 
-B_VALS = {"Type 1: The Basics": 0.5, "Type 2: Tech Apps": 2.0, "Type 3: Big Science": 8.0}
+# --- LAB UI TEXT ---
+LAB_INTRODUCTION = """
+### Welcome to the Venture Capital Lab
+In this module, you are acting as a Fund Manager. Your task is to determine the optimal 
+**Kelly Criterion ($f$)** for your investments. 
+
+1. **Research:** Use the sidebar to simulate 100 trials of a specific sector.
+2. **Observe:** Pay attention to the "Insolvency Rate" vs. the "Growth."
+3. **Strategize:** Find the balance that maximizes your wealth without going bust.
+"""
+
+# --- GAME DATA ---
+B_VALS = {
+    "Type 1: The Basics": 0.5, 
+    "Type 2: Tech Apps": 2.0, 
+    "Type 3: Big Science": 8.0
+}
 
 MARKET_STORIES = {
     "Market A: The Boom": "Consumer spending is at an all-time high and credit is nearly free.",
@@ -14,6 +30,7 @@ TYPE_STORY = {
     "Type 3: Big Science": "Focuses on frontier tech like rockets. Massive R&D risk."
 }
 
+# --- INSTRUCTOR MEMO TEMPLATE ---
 MEMO_TEMPLATE = """
 **To:** Managing Partner | **From:** Risk Assessment Division 
 **Subject:** Audit of {sector} Ventures ({market})

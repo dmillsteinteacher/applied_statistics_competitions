@@ -95,25 +95,31 @@ if pwd == "VC_LEADER":
         sim_col1, sim_col2, sim_col3 = st.columns([1, 1, 2])
         batch_to_add = sim_col1.number_input("Trials per Batch:", 10, 1000, 100, step=10)
         
+        # --- THE RUN BUTTON ---
         if sim_col2.button("🏁 Run Next Batch", type="primary", use_container_width=True):
-            # 1. Capture the batch size as a clean integer
             num_to_run = int(batch_to_add) 
             
-            # 2. Outer Loop: Number of trials
             for _ in range(num_to_run):
-                # 3. Inner Loop: Each contestant
                 for c in st.session_state.contestants:
                     p_true = p_matrix[m_sel][c['Sector']]
                     b_val = nav.B_VALS[c['Sector']]
                     
+                    # Simulation call
                     final_wealth = inst_eng.run_competition_sim(c['f'], p_true, b_val)
                     
                     if c['Name'] not in st.session_state.results_data:
                         st.session_state.results_data[c['Name']] = []
                     st.session_state.results_data[c['Name']].append(final_wealth)
             
-            # 4. FIXED: Update total and rerun ONLY ONCE after all loops finish
+            # CRITICAL: Update the counter and refresh the UI
             st.session_state.sim_total_trials += num_to_run
+            st.rerun()
+
+        # --- THE RESET BUTTON (TESTING) ---
+        if sim_col3.button("🔄 Reset Sim (Keep Roster)", use_container_width=True):
+            st.session_state.sim_total_trials = 0
+            for name in st.session_state.results_data:
+                st.session_state.results_data[name] = []
             st.rerun()
 
         # --- 7. THE TRAPPED LEADERBOARD (LOG-SCALE & SHOCK REVEAL) ---

@@ -42,6 +42,7 @@ st.title("🏆 VC Competition: The Horse Race")
 pwd = st.sidebar.text_input("Instructor Password", type="password")
 
 if pwd == "VC_LEADER":
+    show_truth = st.sidebar.checkbox("🔓 REVEAL MEDIAN TRUTH", value=False)
     # SCENARIO CONFIG
     with st.expander("🛠️ Secret Scenario Configuration", expanded=True):
         col1, col2 = st.columns(2)

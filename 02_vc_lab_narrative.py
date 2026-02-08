@@ -1,22 +1,13 @@
 # 02_vc_lab_narrative.py
 
-# --- LAB UI TEXT ---
-LAB_INTRODUCTION = """
-### Welcome to the Venture Capital Lab
-In this module, you are acting as a Fund Manager. Your task is to determine the optimal 
-reinvestment strategy for your investments. 
-
-1. **Research:** Use the sidebar to simulate 100 trials of a specific sector.
-2. **Observe:** Pay attention to the "Insolvency Rate" vs. the "Growth."
-3. **Strategize:** Find the balance that maximizes your wealth without going bust.
-"""
-
-# --- GAME DATA ---
-B_VALS = {
-    "Type 1: The Basics": 0.5, 
-    "Type 2: Tech Apps": 2.0, 
-    "Type 3: Big Science": 8.0
+# Master Probability Matrix for Environment/Sector Combinations
+P_MATRIX = {
+    "Market A: The Boom": {"Type 1: The Basics": 0.86, "Type 2: Tech Apps": 0.78, "Type 3: Big Science": 0.64},
+    "Market B: The Squeeze": {"Type 1: The Basics": 0.72, "Type 2: Tech Apps": 0.58, "Type 3: Big Science": 0.42},
+    "Market C: Rule Change": {"Type 1: The Basics": 0.82, "Type 2: Tech Apps": 0.68, "Type 3: Big Science": 0.74}
 }
+
+B_VALS = {"Type 1: The Basics": 0.5, "Type 2: Tech Apps": 2.0, "Type 3: Big Science": 8.0}
 
 MARKET_STORIES = {
     "Market A: The Boom": "Consumer spending is at an all-time high and credit is nearly free.",
@@ -30,7 +21,16 @@ TYPE_STORY = {
     "Type 3: Big Science": "Focuses on frontier tech like rockets. Massive R&D risk."
 }
 
-# --- INSTRUCTOR MEMO TEMPLATE ---
+LAB_INTRODUCTION = """
+### Welcome to the Venture Capital Lab
+In this module, you are acting as a Fund Manager. Your task is to determine the optimal 
+**allocation strategy ($f$)** for your investments. 
+
+1. **Research:** Use the sidebar to simulate 100 trials of a specific sector. This represents historical data from similar market conditions.
+2. **Observe:** Pay attention to the "Insolvency Rate" (how often you lose everything) vs. the "Growth" (how much you actually made).
+3. **Strategize:** Find the balance that maximizes your long-term wealth. Be careful—aggressive growth often comes with a hidden risk of total ruin.
+"""
+
 MEMO_TEMPLATE = """
 **To:** Managing Partner | **From:** Risk Assessment Division 
 **Subject:** Audit of {sector} Ventures ({market})

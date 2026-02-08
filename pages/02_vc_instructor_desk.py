@@ -9,21 +9,29 @@ st.set_page_config(page_title="VC Instructor Desk", layout="wide")
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
-    base_dir = os.path.dirname(__file__)
-    path = os.path.join(base_dir, name)
+    # Get the directory where THIS file is (/pages)
+    current_dir = os.path.dirname(__file__)
+    # Go up one level to the Root directory
+    root_dir = os.path.dirname(current_dir)
+    # Target the file in the Root
+    path = os.path.join(root_dir, name)
+    
     if not os.path.exists(path):
-        path = os.path.join(os.path.dirname(base_dir), name)
+        # Fallback for local testing/different structures
+        path = os.path.join(current_dir, name)
+
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None: return None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
+# These now look in the root folder for the moved files
 nav = load_mod("02_vc_lab_narrative.py")
 inst_eng = load_mod("02_vc_instructor_engine.py")
 
 if nav is None or inst_eng is None:
-    st.error("Missing critical helper files (Narrative or Engine). Check extensions.")
+    st.error("Missing critical helper files in Root. Check file locations.")
     st.stop()
 
 # --- 3. HELPER: CURRENCY FORMATTING (K/M notation) ---
@@ -78,7 +86,7 @@ if pwd == "VC_LEADER":
     if st.session_state.contestants:
         st.write("### Pending Roster")
         roster_df = pd.DataFrame(st.session_state.contestants)
-        st.table(roster_df) # Simple table for clarity
+        st.table(roster_df) 
         
         col_run, col_clear = st.columns([1, 4])
         run_sim = col_run.button("🚀 RUN SIMULATION")
@@ -95,21 +103,18 @@ if pwd == "VC_LEADER":
                 
                 stats = inst_eng.run_competition_sim(c['f'], p_true, b_val)
                 
-                # Calculation of IQR and addition of Metadata
                 stats["IQR"] = stats["Q3"] - stats["Q1"]
                 stats.update({"Student": c['Name'], "Sector": c['Sector'], "f": c['f']})
                 results.append(stats)
             
             df = pd.DataFrame(results)
             
-            # Reorder for teaching: Focus on Median, IQR, and Std Dev
             cols = ["Student", "Sector", "f", "Median", "IQR", "Std Dev", "Insolvency Rate", "Min", "Q1", "Q3", "Max", "Mean"]
             df_display = df[cols].sort_values("Median", ascending=False)
             
             st.header("📊 Final Competition Results")
             st.balloons()
             
-            # Apply custom K/M formatting to all dollar columns
             dollar_cols = ["Median", "IQR", "Std Dev", "Min", "Q1", "Q3", "Max", "Mean"]
             formatted_df = df_display.copy()
             for col in dollar_cols:
@@ -128,6 +133,4 @@ else:
 # 1
 # 2
 # 3
-# 4
-# 5
 # --- END OF FILE ---

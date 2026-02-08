@@ -6,13 +6,9 @@ import os
 
 # --- 1. MODULE LOADING ---
 def load_mod(name):
-    current_dir = os.path.dirname(__file__)
-    root_dir = os.path.dirname(current_dir)
-    path = os.path.join(root_dir, name)
-    if not os.path.exists(path):
-        path = os.path.join(current_dir, name)
+    # Standard pathing to find files in the Root from the /pages folder
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), name)
     spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None: return None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -21,88 +17,101 @@ nav = load_mod("02_vc_lab_narrative.py")
 engine = load_mod("02_vc_lab_engine.py")
 
 # --- 2. SESSION STATE MANAGEMENT ---
-if 'audit_p' not in st.session_state: st.session_state.audit_p = None
 if 'p_verified' not in st.session_state: st.session_state.p_verified = False
-if 'simulation_history' not in st.session_state: st.session_state.simulation_history = []
+if 'current_p' not in st.session_state: st.session_state.current_p = 0.0
+if 'memo_text' not in st.session_state: st.session_state.memo_text = None
+if 'trial_history' not in st.session_state: st.session_state.trial_history = []
 
-# --- 3. UI SETUP ---
+# --- 3. PAGE CONFIG ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 st.title("💼 Venture Capital Training Lab")
 st.markdown(nav.LAB_INTRODUCTION)
 
-tab1, tab2, tab3 = st.tabs(["🔍 Phase 1: Probability Audit", "📊 Phase 2: Success Intuition", "💰 Phase 3: Strategy Selection"])
+# --- 4. THREE-TAB STRUCTURE ---
+tab1, tab2, tab3 = st.tabs([
+    "🔍 Phase 1: Internal Audit", 
+    "📊 Phase 2: Probability Study", 
+    "💰 Phase 3: Reinvestment Strategy"
+])
 
-# --- TAB 1: AUDIT & VERIFICATION ---
+# --- TAB 1: THE AUDIT & VERIFICATION GATE ---
 with tab1:
-    st.header("Determine Market Probability")
+    st.header("Step 1: Audit the Market")
     c1, c2 = st.columns(2)
     
     with c1:
-        sector = st.selectbox("Sector", list(nav.TYPE_STORY.keys()))
-        market = st.selectbox("Market", list(nav.MARKET_STORIES.keys()))
+        sector_choice = st.selectbox("Select Investment Sector", list(nav.TYPE_STORY.keys()))
+        market_choice = st.selectbox("Select Market Environment", list(nav.MARKET_STORIES.keys()))
+        
         if st.button("Generate Audit Memo"):
-            # Fixed p for training context (e.g., 0.74)
-            st.session_state.audit_p = 0.74 
-            successes = 37 # 37/50 = 0.74
-            failures = 13
-            ef, mf = 8, 5
-            st.session_state.memo = nav.MEMO_TEMPLATE.format(sector=sector, market=market, ef=ef, mf=mf)
-    
+            # Pull base probability from the 9-matrix
+            base_p = nav.P_MATRIX[market_choice][sector_choice]
+            # Add Gaussian noise for the specific sample
+            noisy_p = np.clip(np.random.normal(base_p, 0.02), 0.1, 0.9)
+            
+            # Generate 50 trials
+            successes = int(np.random.binomial(50, noisy_p))
+            failures = 50 - successes
+            
+            # Record the "Truth" for this specific memo
+            st.session_state.current_p = successes / 50.0
+            st.session_state.p_verified = False # Reset gate
+            
+            # Format Memo
+            ef = int(failures * 0.6)
+            mf = failures - ef
+            st.session_state.memo_text = nav.MEMO_TEMPLATE.format(
+                sector=sector_choice, market=market_choice, ef=ef, mf=mf
+            )
+            
     with c2:
-        if 'memo' in st.session_state:
-            st.info(st.session_state.memo)
-            user_p = st.number_input("Enter the probability (p) based on this history:", 0.0, 1.0, step=0.01)
+        if st.session_state.memo_text:
+            st.info(st.session_state.memo_text)
+            input_p = st.number_input("Determine the probability of success (p):", 0.0, 1.0, step=0.01)
             if st.button("Verify Probability"):
-                if abs(user_p - st.session_state.audit_p) < 0.001:
-                    st.success("Correct! You may now proceed to Phase 2.")
+                if abs(input_p - st.session_state.current_p) < 0.001:
+                    st.success("✅ Verification successful. You may proceed to Phase 2.")
                     st.session_state.p_verified = True
                 else:
-                    st.error("The probability does not match the memo records. Re-calculate (Successes / 50).")
+                    st.error("❌ Probability incorrect. Review the memo and calculate: Successes / 50.")
 
-# --- TAB 2: INTUITION (Red/Green Squares) ---
+# --- TAB 2: PROBABILITY STUDY (INTUITION BUILDING) ---
 with tab2:
-    st.header("Building Intuition: Variance in Action")
+    st.header("Step 2: Visualize Variance")
     if not st.session_state.p_verified:
-        st.warning("Please verify the probability in Phase 1 before running intuition trials.")
+        st.warning("Please verify the probability in Phase 1 to unlock this study.")
     else:
-        if st.button("Run 100-Trial History"):
-            # Generate 100 trials
-            trials = np.random.choice([1, 0], size=100, p=[st.session_state.audit_p, 1-st.session_state.audit_p])
+        st.write(f"Studying performance for **p = {st.session_state.current_p}**")
+        if st.button("Simulate 100 Trials"):
+            # Generate trials based on the verified p
+            trials = np.random.choice([1, 0], size=100, p=[st.session_state.current_p, 1-st.session_state.current_p])
             
-            # Calculate runs
-            runs = "".join(trials.astype(str)).split('1')
-            max_fail_run = len(max(runs, key=len))
+            # Calculate max consecutive failures
+            fail_runs = "".join(trials.astype(str)).split('1')
+            max_fail = len(max(fail_runs, key=len))
             
-            # Record for history
-            trial_record = {
-                "id": len(st.session_state.simulation_history) + 1,
+            # Store in history (insert at start so newest is on top)
+            st.session_state.trial_history.insert(0, {
+                "id": len(st.session_state.trial_history) + 1,
                 "trials": trials,
-                "successes": sum(trials),
-                "failures": 100 - sum(trials),
-                "max_fail": max_fail_run
-            }
-            st.session_state.simulation_history.insert(0, trial_record)
-
-        # Display History in Expanders
-        for record in st.session_state.simulation_history:
-            with st.expander(f"Run #{record['id']}: {record['successes']} Wins / {record['failures']} Losses"):
-                # Display Grid
+                "wins": sum(trials),
+                "max_fail": max_fail
+            })
+            
+        # Display history in expanders
+        for run in st.session_state.trial_history:
+            with st.expander(f"Trial Set #{run['id']} | Successes: {run['wins']} | Max Consecutive Failures: {run['max_fail']}"):
                 cols = st.columns(20)
-                for i, t in enumerate(record['trials']):
-                    color = "🟩" if t == 1 else "🟥"
-                    cols[i % 20].write(color)
-                
-                st.write(f"**Longest losing streak in this universe:** {record['max_fail']} consecutive failures.")
+                for i, result in enumerate(run['trials']):
+                    cols[i % 20].write("🟩" if result == 1 else "🟥")
 
-# --- TAB 3: STRATEGY ---
+# --- TAB 3: REINVESTMENT STRATEGY ---
 with tab3:
-    st.header("Select Reinvestment Strategy")
+    st.header("Step 3: Determine Allocation")
     if not st.session_state.p_verified:
-        st.warning("Please complete Phase 1 first.")
+        st.warning("Please verify the probability in Phase 1 to unlock strategy testing.")
     else:
-        f_final = st.slider("Target Allocation (f)", 0.0, 1.0, 0.1, 0.01)
-        if st.button("Run Strategy Simulation"):
-            b = nav.B_VALS[sector]
-            res = engine.run_simulation(f_final, st.session_state.audit_p, b)
-            st.metric("Median Ending Wealth", f"${res['Median']:,.0f}")
-            st.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+        st.write(f"Targeting sector: **{sector_choice}** (p={st.session_state.current_p})")
+        f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
+        
+        if st.button("Run Simulation"):

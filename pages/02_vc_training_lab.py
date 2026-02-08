@@ -101,46 +101,55 @@ with tab3:
     if not st.session_state.p_verified:
         st.warning("Locked: Verify probability in Phase 1.")
     else:
-        # Pull the payout multiple from narrative
         b_val = nav.B_VALS[sector_choice]
-        
-        # Clean header with standard font sizes
         st.markdown(f"**Environment:** {market_choice} | **Target p:** {st.session_state.current_p:.2f} | **Payback b:** {b_val}x")
-        st.write(f"Testing strategy for **{sector_choice}**")
         
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
-        if st.button("Run Simulation"):
-            # Execute 100 simulations of 50 steps each
+        if st.button("Run Simulation", key="sim_btn"):
+            # 1. Run the simulation batch
             res = engine.run_simulation(f_guess, st.session_state.current_p, b_val, n_steps=50)
             
-            # 1. Numerical Summary (Statistical view of the 100 runs)
-            col1, col2 = st.columns(2)
-            col1.metric("Batch Median Wealth", f"${res['Median']:,.0f}")
-            col2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
-
-            # 2. Visualization (Individual journey view)
-            st.subheader("Latest Fund Trajectory")
+            # 2. Visualization (The specific journey of ONE fund)
             history = res['History']
-            
-            # We plot only the very last (most recent) path in the array
-            latest_path = history[-1, :] 
+            random_idx = np.random.randint(0, history.shape[0])
+            latest_path = history[random_idx, :] 
             steps = np.arange(len(latest_path))
 
+            st.subheader(f"Individual Fund Trajectory (Trial #{random_idx})")
             fig, ax = plt.subplots(figsize=(10, 4))
             
-            # Color the line based on whether the fund survived or went bust
-            path_color = "#2ecc71" if latest_path[-1] > 0 else "#e74c3c"
+            is_insolvent = latest_path[-1] <= 1.0
+            path_color = "#e74c3c" if is_insolvent else "#2ecc71"
             
             ax.plot(steps, latest_path, color=path_color, linewidth=2)
             ax.fill_between(steps, latest_path, color=path_color, alpha=0.1)
             
-            # Formatting the plot
-            ax.set_yscale('log') # Log scale is essential for visualizing VC growth
+            ax.set_yscale('log')
             ax.set_xlabel("Reinvestment Cycles")
             ax.set_ylabel("Wealth (Log Scale)")
             ax.grid(True, which="both", ls="-", alpha=0.2)
-            
-            # Tight layout to keep it clean
-            plt.tight_layout()
+            ax.set_ylim(bottom=0.1) 
             st.pyplot(fig)
+
+            st.divider()
+
+            # 3. Post-Mortem / Batch Statistics (The broader risk context)
+            st.subheader("Strategy Post-Mortem")
+            st.write("""
+                The chart above shows just **one** possible outcome. To understand your true risk, 
+                look at the aggregate performance of 100 funds using this exact same strategy:
+            """)
+            
+            c1, c2 = st.columns(2)
+            c1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
+            c2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
+
+            with st.expander("What does the Insolvency Rate mean?"):
+                st.write(f"""
+                    The **Insolvency Rate of {res['Insolvency Rate']:.1%}** means that in {res['Insolvency Rate']*100:.0f} 
+                    out of 100 universes, a manager using your **f={f_guess}** strategy lost the entire fund. 
+                    
+                    Even if your specific chart above looks successful, a high insolvency rate 
+                    suggests you are 'overbetting' and eventually your luck will run out.
+                """)

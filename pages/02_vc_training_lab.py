@@ -101,41 +101,46 @@ with tab3:
     if not st.session_state.p_verified:
         st.warning("Locked: Verify probability in Phase 1.")
     else:
+        # Pull the payout multiple from narrative
         b_val = nav.B_VALS[sector_choice]
         
-        # FIXED: Replacing st.metric with a cleaner, smaller layout
-        st.markdown(f"**Current Profile:** {market_choice} | **p**: {st.session_state.current_p:.2f} | **b**: {b_val}x")
+        # Clean header with standard font sizes
+        st.markdown(f"**Environment:** {market_choice} | **Target p:** {st.session_state.current_p:.2f} | **Payback b:** {b_val}x")
         st.write(f"Testing strategy for **{sector_choice}**")
         
         f_guess = st.slider("Select reinvestment fraction (f)", 0.0, 1.0, 0.1, 0.01)
         
         if st.button("Run Simulation"):
-            # We need the full path data for the plot, so we'll call the engine
-            # Note: Ensure your engine returns 'history' as well (see engine update below)
+            # Execute 100 simulations of 50 steps each
             res = engine.run_simulation(f_guess, st.session_state.current_p, b_val, n_steps=50)
             
-            # 1. Numerical Summary
+            # 1. Numerical Summary (Statistical view of the 100 runs)
             col1, col2 = st.columns(2)
-            col1.metric("Median Final Wealth", f"${res['Median']:,.0f}")
+            col1.metric("Batch Median Wealth", f"${res['Median']:,.0f}")
             col2.metric("Insolvency Rate", f"{res['Insolvency Rate']:.1%}")
 
-            # 2. Line Plot of all 100 paths
-            st.subheader("Simulated Fund Trajectories")
+            # 2. Visualization (Individual journey view)
+            st.subheader("Latest Fund Trajectory")
+            history = res['History']
+            
+            # We plot only the very last (most recent) path in the array
+            latest_path = history[-1, :] 
+            steps = np.arange(len(latest_path))
+
             fig, ax = plt.subplots(figsize=(10, 4))
             
-            # The engine should return a 2D array: [simulation, step]
-            history = res['History'] 
-            steps = np.arange(history.shape[1])
+            # Color the line based on whether the fund survived or went bust
+            path_color = "#2ecc71" if latest_path[-1] > 0 else "#e74c3c"
             
-            for i in range(history.shape[0]):
-                alpha = 0.3 if history[i, -1] > 0 else 0.1 # Fade out failed funds
-                color = "green" if history[i, -1] > 1000 else "red"
-                ax.plot(steps, history[i], color=color, alpha=alpha, linewidth=1)
+            ax.plot(steps, latest_path, color=path_color, linewidth=2)
+            ax.fill_between(steps, latest_path, color=path_color, alpha=0.1)
             
-            ax.set_yscale('log') # Log scale helps visualize exponential VC growth
+            # Formatting the plot
+            ax.set_yscale('log') # Log scale is essential for visualizing VC growth
             ax.set_xlabel("Reinvestment Cycles")
-            ax.set_ylabel("Fund Wealth (Log Scale)")
-            ax.axhline(1000, color="white", linestyle="--", alpha=0.5) # Starting line
-            st.pyplot(fig)
+            ax.set_ylabel("Wealth (Log Scale)")
+            ax.grid(True, which="both", ls="-", alpha=0.2)
             
-            # Strategy Validated message removed as requested.
+            # Tight layout to keep it clean
+            plt.tight_layout()
+            st.pyplot(fig)

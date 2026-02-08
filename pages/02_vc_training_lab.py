@@ -5,20 +5,19 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# --- 1. SET PAGE CONFIG ---
+# --- 1. SET PAGE CONFIG (MUST BE FIRST) ---
 st.set_page_config(page_title="VC Training Lab", layout="wide")
 
 # --- 2. MODULE LOADING ---
 def load_mod(name):
-    # Get the path of the current file (in /pages/)
+    # Get the path of the current file's directory (the /pages/ folder)
     current_dir = Path(__file__).parent
-    # Go up one level to the root
+    # Go up one level to the root directory where narrative and engine live
     root_dir = current_dir.parent
-    # Define the target file path
     path = root_dir / name
     
     if not path.exists():
-        raise FileNotFoundError(f"Could not find {name} at {path}")
+        raise FileNotFoundError(f"Missing file: {name} at {path}")
 
     spec = importlib.util.spec_from_file_location(name, str(path))
     mod = importlib.util.module_from_spec(spec)
@@ -31,7 +30,7 @@ try:
 except Exception as e:
     st.error(f"❌ Module Load Error: {e}")
     st.stop()
-
+    
 # --- 3. SESSION STATE ---
 # Removed lab_id and p_matrix logic to eliminate seeding
 for k in ["cur_scen", "audit", "verified", "history"]:

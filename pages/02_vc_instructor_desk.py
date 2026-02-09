@@ -130,9 +130,12 @@ if pwd == "VC_LEADER":
             # --- 7a. THE TRUTH DISCLOSURE (Only shows on Reveal) ---
             if show_truth:
                 st.warning(f"⚠️ **MARKET DISCLOSURE:** The true environment was **{m_sel}**.")
-                # Show the specific probabilities of the revealed environment
-                cols = st.columns(len(nav.SECTORS))
-                for idx, sector in enumerate(nav.SECTORS):
+                
+                # We pull the keys directly from p_matrix[m_sel] to ensure UI matches Simulation
+                active_sectors = list(p_matrix[m_sel].keys())
+                
+                cols = st.columns(len(active_sectors))
+                for idx, sector in enumerate(active_sectors):
                     p_val = p_matrix[m_sel][sector]
                     cols[idx].metric(f"True P({sector})", f"{p_val*100:.0f}%")
                 st.write("") # Spacer

@@ -122,21 +122,33 @@ if pwd == "VC_LEADER":
                 st.session_state.results_data[name] = []
             st.rerun()
 
-        # --- 7. THE TRAPPED LEADERBOARD (WITH STRATEGY ECHO) ---
+        # --- 7. THE TRAPPED LEADERBOARD (FULL VERSION) ---
         st.divider()
         st.subheader("📊 Market Leaderboard")
-        st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
         
         if st.session_state.sim_total_trials > 0:
+            # --- 7a. THE TRUTH DISCLOSURE (Only shows on Reveal) ---
+            if show_truth:
+                st.warning(f"⚠️ **MARKET DISCLOSURE:** The true environment was **{m_sel}**.")
+                # Show the specific probabilities of the revealed environment
+                cols = st.columns(len(nav.SECTORS))
+                for idx, sector in enumerate(nav.SECTORS):
+                    p_val = p_matrix[m_sel][sector]
+                    cols[idx].metric(f"True P({sector})", f"{p_val*100:.0f}%")
+                st.write("") # Spacer
+
+            st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
+            
+            # --- 7b. DATA PROCESSING ---
             leaderboard_data = []
-            # We map contestants to a dict for easy lookup of their strategy
+            # Create a lookup for student strategies
             strat_lookup = {c['Name']: c for c in st.session_state.contestants}
             
             for name, results in st.session_state.results_data.items():
                 arr = np.array(results)
                 total_w = np.sum(arr)
                 log_val = np.log10(total_w + 1)
-                s_info = strat_lookup.get(name, {"Sector": "???", "f": 0})
+                s_info = strat_lookup.get(name, {"Sector": "Unknown", "f": 0})
                 
                 leaderboard_data.append({
                     "Name": name, 
@@ -149,42 +161,46 @@ if pwd == "VC_LEADER":
                     "Color": st.session_state.colors.get(name, "#1C83E1")
                 })
             
-            # Sort Logic: AUM vs Median
+            # --- 7c. DYNAMIC SORTING ---
             if not show_truth:
+                # The "Bait": Sort by Total Assets
                 leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
             else:
+                # The "Reality": Sort by Median Growth
                 leaderboard_data = sorted(leaderboard_data, key=lambda x: x['Median'], reverse=True)
 
             max_log = max([entry['LogVal'] for entry in leaderboard_data]) if leaderboard_data else 1
 
-            # Header Labels
-            h_col1, h_col2, h_col3 = st.columns([0.15, 0.45, 0.40])
+            # --- 7d. THE VISUAL RACE ---
+            # Adjusted column ratios to fit the Strategy Echo text [Name, Bar, Stats]
+            h_col1, h_col2, h_col3 = st.columns([0.15, 0.40, 0.45])
             h_col1.caption("**Manager**")
             h_col2.caption("**Total Assets (Log Scale)**")
-            h_col3.caption("**Strategy & Status**" if not show_truth else "**The Reality**")
+            h_col3.caption("**Strategy & Status**" if not show_truth else "**The Reality & Strategy**")
 
             for entry in leaderboard_data:
                 rel_width = (entry['LogVal'] / max_log * 100)
                 
                 if not show_truth:
-                    # Before reveal: Show Sector and f so you know who is who
+                    # The "Competitive" Phase
                     status_text = f"🟢 {entry['Sector']} (f={entry['f']})"
                     text_color = "#444"
                 else:
-                    # After reveal: The Shock stats + the strategy echo
+                    # The "Aha!" Phase
                     status_text = f"**Med: ${entry['Median']:,.2f}** ({entry['Insolvency']:.0%} Def) | {entry['Sector']} (f={entry['f']})"
+                    # Green for profit, Red for bankruptcy
                     text_color = "#D32F2F" if entry['Median'] < 100 else "#2E7D32"
 
                 race_html = f"""
                 <div style="display: flex; align-items: center; margin-bottom: 6px; font-family: sans-serif;">
-                    <div style="width: 15%; text-align: right; padding-right: 12px; font-weight: bold; font-size: 0.85rem;">
+                    <div style="width: 15%; text-align: right; padding-right: 12px; font-weight: bold; font-size: 0.85rem; overflow: hidden; white-space: nowrap;">
                         {entry['Name']}
                     </div>
-                    <div style="width: 45%; background-color: #f0f2f6; border-radius: 4px; height: 16px;">
+                    <div style="width: 40%; background-color: #f0f2f6; border-radius: 4px; height: 16px;">
                         <div style="width: {rel_width}%; background-color: {entry['Color']}; height: 100%; border-radius: 4px; transition: width 0.6s ease-in-out;">
                         </div>
                     </div>
-                    <div style="width: 40%; padding-left: 12px; font-size: 0.85rem; color: {text_color}; white-space: nowrap;">
+                    <div style="width: 45%; padding-left: 12px; font-size: 0.82rem; color: {text_color}; white-space: nowrap;">
                         {status_text}
                     </div>
                 </div>

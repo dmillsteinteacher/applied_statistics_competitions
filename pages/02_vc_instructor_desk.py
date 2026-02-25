@@ -123,28 +123,33 @@ if pwd == "VC_LEADER":
             st.rerun()
 
         # --- 7. THE TRAPPED LEADERBOARD (FULL VERSION) ---
+# --- 7. THE TRAPPED LEADERBOARD (FULL VERSION) ---
         st.divider()
         st.subheader("📊 Market Leaderboard")
         
         if st.session_state.sim_total_trials > 0:
-            # --- 7a. THE TRUTH DISCLOSURE (Only shows on Reveal) ---
+            # Helper for Vibe-Coding the shorthand numbers
+            def fmt_val(n):
+                if n >= 1e12: return f"${n/1e12:.1f}T"
+                if n >= 1e9:  return f"${n/1e9:.1f}B"
+                if n >= 1e6:  return f"${n/1e6:.1f}M"
+                if n >= 1e3:  return f"${n/1e3:.1f}K"
+                return f"${n:.2f}"
+
+            # --- 7a. THE TRUTH DISCLOSURE ---
             if show_truth:
                 st.warning(f"⚠️ **MARKET DISCLOSURE:** The true environment was **{m_sel}**.")
-                
-                # We pull the keys directly from p_matrix[m_sel] to ensure UI matches Simulation
                 active_sectors = list(p_matrix[m_sel].keys())
-                
                 cols = st.columns(len(active_sectors))
                 for idx, sector in enumerate(active_sectors):
                     p_val = p_matrix[m_sel][sector]
                     cols[idx].metric(f"True P({sector})", f"{p_val*100:.0f}%")
-                st.write("") # Spacer
+                st.write("") 
 
             st.write(f"**Total Universes Simulated:** {st.session_state.sim_total_trials}")
             
             # --- 7b. DATA PROCESSING ---
             leaderboard_data = []
-            # Create a lookup for student strategies
             strat_lookup = {c['Name']: c for c in st.session_state.contestants}
             
             for name, results in st.session_state.results_data.items():
@@ -153,11 +158,16 @@ if pwd == "VC_LEADER":
                 log_val = np.log10(total_w + 1)
                 s_info = strat_lookup.get(name, {"Sector": "Unknown", "f": 0})
                 
+                # New calculations for the "Aha!" moment
+                current_median = np.median(arr)
+                current_mean = np.mean(arr)
+                
                 leaderboard_data.append({
                     "Name": name, 
                     "TotalWealth": total_w,
                     "LogVal": log_val,
-                    "Median": np.median(arr), 
+                    "Median": current_median, 
+                    "Mean": current_mean,
                     "Insolvency": np.sum(arr <= 1.0) / len(arr),
                     "Sector": s_info['Sector'],
                     "f": s_info['f'],
@@ -166,33 +176,33 @@ if pwd == "VC_LEADER":
             
             # --- 7c. DYNAMIC SORTING ---
             if not show_truth:
-                # The "Bait": Sort by Total Assets
                 leaderboard_data = sorted(leaderboard_data, key=lambda x: x['TotalWealth'], reverse=True)
             else:
-                # The "Reality": Sort by Median Growth
                 leaderboard_data = sorted(leaderboard_data, key=lambda x: x['Median'], reverse=True)
 
             max_log = max([entry['LogVal'] for entry in leaderboard_data]) if leaderboard_data else 1
 
             # --- 7d. THE VISUAL RACE ---
-            # Adjusted column ratios to fit the Strategy Echo text [Name, Bar, Stats]
             h_col1, h_col2, h_col3 = st.columns([0.15, 0.40, 0.45])
             h_col1.caption("**Manager**")
             h_col2.caption("**Total Assets (Log Scale)**")
-            h_col3.caption("**Strategy & Status**" if not show_truth else "**The Reality & Strategy**")
+            h_col3.caption("**Avg Performance (The Bait)**" if not show_truth else "**Median vs Average (The Reality)**")
 
             for entry in leaderboard_data:
                 rel_width = (entry['LogVal'] / max_log * 100)
                 
+                # Vibe coding colors
+                # Green if making profit (>100), Red if losing or broke (<100)
+                vibe_color = "#2E7D32" if entry['Median'] >= 100 else "#D32F2F"
+                
                 if not show_truth:
-                    # The "Competitive" Phase
-                    status_text = f"🟢 {entry['Sector']} (f={entry['f']})"
-                    text_color = "#444"
+                    # During the race: focus on the "Bait" (Average)
+                    status_text = f"Avg: **{fmt_val(entry['Mean'])}** | {entry['Sector']} (f={entry['f']})"
+                    text_color = "#444" 
                 else:
-                    # The "Aha!" Phase
-                    status_text = f"**Med: ${entry['Median']:,.2f}** ({entry['Insolvency']:.0%} Def) | {entry['Sector']} (f={entry['f']})"
-                    # Green for profit, Red for bankruptcy
-                    text_color = "#D32F2F" if entry['Median'] < 100 else "#2E7D32"
+                    # The Reveal: Median vs Average side-by-side
+                    status_text = f"**Med: {fmt_val(entry['Median'])}** | Avg: {fmt_val(entry['Mean'])} | {entry['Insolvency']:.0%} Def"
+                    text_color = vibe_color
 
                 race_html = f"""
                 <div style="display: flex; align-items: center; margin-bottom: 6px; font-family: sans-serif;">

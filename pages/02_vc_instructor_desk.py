@@ -200,8 +200,9 @@ if pwd == "VC_LEADER":
                     status_text = f"Avg: **{fmt_val(entry['Mean'])}** | {entry['Sector']} (f={entry['f']})"
                     text_color = "#444" 
                 else:
-                    # The Reveal: Median vs Average side-by-side
-                    status_text = f"**Med: {fmt_val(entry['Median'])}** | Avg: {fmt_val(entry['Mean'])} | {entry['Insolvency']:.0%} Def"
+                    # The Reveal: Now showing BOTH stats + the original strategy
+                    # Format: Med: $X | Avg: $Y | Sector (f=0.XX) | % Def
+                    status_text = f"**Med: {fmt_val(entry['Median'])}** | Avg: {fmt_val(entry['Mean'])} | {entry['Sector']} (f={entry['f']}) | {entry['Insolvency']:.0%} Def"
                     text_color = vibe_color
 
                 race_html = f"""
